@@ -9,7 +9,7 @@ interface HeroProps {
 }
 
 export function Hero({ setActiveSection }: HeroProps) {
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
 
   const features = [
     {
