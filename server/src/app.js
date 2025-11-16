@@ -1,0 +1,64 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+const { passport, configurePassport } = require('./config/passport');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const errorHandler = require('./middleware/errorHandler');
+
+const app = express();
+
+// Configure Passport strategies (Google, GitHub)
+configurePassport();
+
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+// Security headers
+app.use(helmet());
+
+// CORS configuration to allow requests from the React frontend
+app.use(
+  cors({
+    origin: clientUrl,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  })
+);
+
+// Parse JSON request bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Parse cookies (needed for reading auth tokens)
+app.use(cookieParser());
+
+// Initialize Passport for OAuth
+app.use(passport.initialize());
+
+// Rate limiting for auth routes to help prevent brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // limit each IP to 20 auth requests per window
+  message: 'Too many auth requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Simple health check route to verify the server is running
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, message: 'API is healthy' });
+});
+
+// Mount API routes
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Global error handler (keep this last)
+app.use(errorHandler);
+
+module.exports = app;
