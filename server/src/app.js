@@ -14,7 +14,7 @@ const app = express();
 // Configure Passport strategies (Google, GitHub)
 configurePassport();
 
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 
 // Security headers
 app.use(helmet());

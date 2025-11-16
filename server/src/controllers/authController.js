@@ -186,7 +186,7 @@ function oauthCallback(req, res) {
   const passportUser = req.user;
 
   if (!passportUser) {
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     return res.redirect(clientUrl + '/auth/error');
   }
 
@@ -195,7 +195,7 @@ function oauthCallback(req, res) {
 
   setAuthCookies(res, accessToken, refreshToken);
 
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   // Frontend can call /api/user/me after this redirect to get user info
   return res.redirect(clientUrl + '/auth/success');
 }
