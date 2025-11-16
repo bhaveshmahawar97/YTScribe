@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
 import { toast } from 'sonner';
+import { requestPasswordReset } from '../../api/auth';
 
 export function ForgotPasswordPage({ onNavigate }) {
   const [email, setEmail] = useState('');
@@ -15,13 +16,15 @@ export function ForgotPasswordPage({ onNavigate }) {
     e.preventDefault();
     setLoading(true);
 
-    // For now we simulate sending an email. Later you can connect this
-    // to a real backend route like POST /api/auth/forgot-password.
-    setTimeout(() => {
+    try {
+      const data = await requestPasswordReset(email);
       setEmailSent(true);
+      toast.success(data.message || 'Password reset link sent!');
+    } catch (error) {
+      toast.error(error.message || 'Failed to send reset link');
+    } finally {
       setLoading(false);
-      toast.success('Password reset link sent!');
-    }, 1500);
+    }
   };
 
   return (

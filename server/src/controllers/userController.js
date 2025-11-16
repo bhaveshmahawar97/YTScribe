@@ -27,14 +27,22 @@ async function getMe(req, res, next) {
 async function updateMe(req, res, next) {
   try {
     const userId = req.user && req.user.id;
-    const { name } = req.body;
+    const { name, avatarUrl, bio } = req.body;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
     const updates = {};
-    if (name) updates.name = name;
+    if (typeof name === 'string' && name.trim()) {
+      updates.name = name.trim();
+    }
+    if (typeof avatarUrl === 'string') {
+      updates.avatarUrl = avatarUrl;
+    }
+    if (typeof bio === 'string') {
+      updates.bio = bio.trim();
+    }
 
     const user = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
 

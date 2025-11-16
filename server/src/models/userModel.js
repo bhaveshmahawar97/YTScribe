@@ -34,6 +34,25 @@ const userSchema = new mongoose.Schema(
     providerId: {
       type: String,
     },
+    googleId: {
+      type: String,
+    },
+    githubId: {
+      type: String,
+    },
+    avatarUrl: {
+      type: String,
+    },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

@@ -60,3 +60,34 @@ export function logoutUser() {
     method: 'POST',
   });
 }
+
+// Request a password reset link to be sent to the given email
+export function requestPasswordReset(email) {
+  return request('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+// Reset password using a token from the reset link
+export function resetPassword({ token, password, confirmPassword }) {
+  return request('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password, confirmPassword }),
+  });
+}
+
+// Update profile details (name, avatar, bio) for the current user
+export function updateProfile(payload) {
+  return request('/api/user/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminLogin(payload) {
+  return request('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

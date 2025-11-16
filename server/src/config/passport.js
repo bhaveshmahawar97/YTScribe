@@ -28,13 +28,22 @@ function configurePassport() {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            const email = profile.emails && profile.emails[0] && profile.emails[0].value
-              ? profile.emails[0].value.toLowerCase()
-              : undefined;
+            const email =
+              profile.emails && profile.emails[0] && profile.emails[0].value
+                ? profile.emails[0].value.toLowerCase()
+                : undefined;
             const providerId = profile.id;
+            const googleId = profile.id;
+            const photo =
+              profile.photos && profile.photos[0] && profile.photos[0].value
+                ? profile.photos[0].value
+                : undefined;
 
-            // 1. Try to find existing user by providerId
+            // 1. Try to find existing user by providerId (legacy) or googleId
             let user = await User.findOne({ provider: 'google', providerId });
+            if (!user && googleId) {
+              user = await User.findOne({ googleId });
+            }
 
             // 2. If not found, try to find by email and then attach provider data
             if (!user && email) {
@@ -42,6 +51,10 @@ function configurePassport() {
               if (user) {
                 user.provider = 'google';
                 user.providerId = providerId;
+                user.googleId = user.googleId || googleId;
+                if (!user.avatarUrl && photo) {
+                  user.avatarUrl = photo;
+                }
                 await user.save();
               }
             }
@@ -53,6 +66,8 @@ function configurePassport() {
                 email,
                 provider: 'google',
                 providerId,
+                googleId,
+                avatarUrl: photo,
                 role: 'user',
               });
             }
@@ -85,14 +100,26 @@ function configurePassport() {
                 ? profile.emails[0].value.toLowerCase()
                 : undefined;
             const providerId = profile.id;
+            const githubId = profile.id;
+            const photo =
+              profile.photos && profile.photos[0] && profile.photos[0].value
+                ? profile.photos[0].value
+                : undefined;
 
             let user = await User.findOne({ provider: 'github', providerId });
+            if (!user && githubId) {
+              user = await User.findOne({ githubId });
+            }
 
             if (!user && primaryEmail) {
               user = await User.findOne({ email: primaryEmail });
               if (user) {
                 user.provider = 'github';
                 user.providerId = providerId;
+                user.githubId = user.githubId || githubId;
+                if (!user.avatarUrl && photo) {
+                  user.avatarUrl = photo;
+                }
                 await user.save();
               }
             }
@@ -103,6 +130,8 @@ function configurePassport() {
                 email: primaryEmail,
                 provider: 'github',
                 providerId,
+                githubId,
+                avatarUrl: photo,
                 role: 'user',
               });
             }
@@ -116,7 +145,7 @@ function configurePassport() {
     );
   }
 
-  // How Passport stores user info in the session (we are stateless, but this is still required by Passport)
+  // Passport serialize/deserialize (required by Passport, even though we use JWT cookies)
   passport.serializeUser((user, done) => {
     done(null, user.id);
   });

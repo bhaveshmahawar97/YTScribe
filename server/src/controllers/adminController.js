@@ -1,4 +1,6 @@
 const User = require('../models/userModel');
+const crypto = require('crypto');
+const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
 
 // GET /api/admin/users
 // List users with basic pagination for admin panel
@@ -24,6 +26,71 @@ async function getUsers(req, res, next) {
           limit,
           totalPages: Math.ceil(total / limit),
         },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminLogin(req, res, next) {
+  try {
+    const { email, password } = req.body;
+
+    const adminEmail = 'tyscrbieadmin@official.com';
+    const adminPassword = 'admin@ytscribe';
+
+    if (email !== adminEmail || password !== adminPassword) {
+      return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+    }
+
+    let adminUser = await User.findOne({ email: adminEmail });
+
+    if (!adminUser) {
+      adminUser = await User.create({
+        name: 'YTScribe Admin',
+        email: adminEmail,
+        password: crypto.randomBytes(16).toString('hex'),
+        role: 'admin',
+        provider: 'local',
+      });
+    } else if (adminUser.role !== 'admin') {
+      adminUser.role = 'admin';
+      await adminUser.save();
+    }
+
+    const accessToken = generateAccessToken(adminUser);
+    const refreshToken = generateRefreshToken(adminUser);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    const baseOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
+    };
+
+    res.cookie('access_token', accessToken, {
+      ...baseOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      ...baseOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Admin logged in successfully',
+      user: {
+        id: adminUser._id,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role,
+        provider: adminUser.provider,
+        createdAt: adminUser.createdAt,
+        updatedAt: adminUser.updatedAt,
       },
     });
   } catch (error) {
@@ -82,4 +149,5 @@ module.exports = {
   getUsers,
   updateUserRole,
   getDashboard,
+  adminLogin,
 };

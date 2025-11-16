@@ -3,6 +3,7 @@ import { Youtube, Sparkles, Menu, X, User, Settings, Crown, LogOut, Shield } fro
 import { Button } from './ui/button';
 import { ThemeSelector } from './ThemeSelector';
 import { useState } from 'react';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,15 +13,34 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 
 interface HeaderProps {
   activeSection: string;
   setActiveSection: (section: any) => void;
+  currentUser?: {
+    name?: string;
+    email?: string;
+    role?: string;
+    avatarUrl?: string;
+  } | null;
+  onLogout?: () => void;
 }
 
-export function Header({ activeSection, setActiveSection }: HeaderProps) {
+const IconButton: any = Button;
+
+export function Header({ activeSection, setActiveSection, currentUser, onLogout }: HeaderProps) {
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
+
+  const displayName = currentUser?.name || currentUser?.email || 'Guest';
+  const initials = displayName
+    .split(' ')
+    .map((part) => part.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -36,7 +56,7 @@ export function Header({ activeSection, setActiveSection }: HeaderProps) {
 
   const handleFontSizeChange = (size: 'small' | 'medium' | 'large') => {
     setFontSize(size);
-    document.documentElement.style.fontSize = 
+    document.documentElement.style.fontSize =
       size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
   };
 
@@ -95,59 +115,94 @@ export function Header({ activeSection, setActiveSection }: HeaderProps) {
           {/* Theme Selector, Profile & Mobile Menu */}
           <div className="flex items-center gap-3">
             <ThemeSelector />
-            
-            {/* Profile Dropdown */}
+
+            {/* Profile Dropdown / Login avatar */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="hidden md:flex">
-                  <User className="w-4 h-4" />
-                </Button>
+                <IconButton
+                  variant="outline"
+                  size="icon"
+                  className="hidden md:flex p-0 rounded-full"
+                  onClick={() => {
+                    if (!currentUser) {
+                      setActiveSection('login');
+                    }
+                  }}
+                >
+                  {currentUser ? (
+                    <Avatar className="w-9 h-9 bg-muted flex items-center justify-center rounded-full overflow-hidden">
+                      {currentUser.avatarUrl ? (
+                        <AvatarImage src={currentUser.avatarUrl} alt={displayName} />
+                      ) : (
+                        <AvatarFallback className="text-xs font-semibold">
+                          {initials}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  ) : (
+                    <Avatar className="w-9 h-9 bg-muted flex items-center justify-center rounded-full overflow-hidden">
+                      <AvatarFallback className="text-muted-foreground">
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </IconButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setActiveSection('profile')}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveSection('premium')}>
-                  <Crown className="mr-2 h-4 w-4" />
-                  <span>Upgrade to Premium</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveSection('admin')}>
-                  <Shield className="mr-2 h-4 w-4" />
-                  <span>Admin Panel</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-2">
-                  <label className="text-sm text-muted-foreground mb-2 block">Font Size</label>
-                  <Select value={fontSize} onValueChange={(value: any) => handleFontSizeChange(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setActiveSection('login')}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
+                {currentUser && (
+                  <>
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setActiveSection('profile')}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setActiveSection('premium')}>
+                      <Crown className="mr-2 h-4 w-4" />
+                      <span>Upgrade to Premium</span>
+                    </DropdownMenuItem>
+                    {currentUser.role === 'admin' && (
+                      <DropdownMenuItem onClick={() => setActiveSection('admin')}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-2">
+                      <label className="text-sm text-muted-foreground mb-2 block">Font Size</label>
+                      <Select value={fontSize} onValueChange={(value: any) => handleFontSizeChange(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="small">Small</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="large">Large</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (onLogout) onLogout();
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
+            <IconButton
               variant="ghost"
               size="icon"
               className="lg:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X /> : <Menu />}
-            </Button>
+            </IconButton>
           </div>
         </div>
 

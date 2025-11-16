@@ -17,22 +17,45 @@ import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { PremiumPage } from './components/PremiumPage';
 import { AdminPanel } from './components/AdminPanel.jsx';
+import { ProfilePage } from './components/ProfilePage.jsx';
 import { LoginPage } from './components/Auth/LoginPage.jsx';
 import { RegisterPage } from './components/Auth/RegisterPage.jsx';
 import { ForgotPasswordPage } from './components/Auth/ForgotPasswordPage.jsx';
+import { ResetPasswordPage } from './components/Auth/ResetPasswordPage.jsx';
+import { AdminLoginPage } from './components/Auth/AdminLoginPage.jsx';
+import { AuthSuccessPage } from './components/Auth/AuthSuccessPage.jsx';
 import { PremiumNewsletterPopup } from './components/PremiumNewsletterPopup';
 import { Footer } from './components/Footer';
 import { Toaster } from './components/ui/sonner';
-import { getCurrentUser } from './api/auth';
+import { getCurrentUser, logoutUser } from './api/auth';
 import { toast } from 'sonner';
 
 // We keep section names as simple strings (no TypeScript types)
 // "activeSection" controls which main page is shown
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState('home');
+  const [activeSection, setActiveSectionState] = useState('home');
   const [user, setUser] = useState(null); // store basic user info from backend
   const [isPremium, setIsPremium] = useState(false);
+
+  const publicSections = ['home', 'login', 'register', 'forgot', 'reset-password', 'admin-login', 'auth-success'];
+  const isAuthenticated = !!user;
+  const isAdmin = !!user && user.role === 'admin';
+
+  const setActiveSection = (section) => {
+    if (section === 'admin' && !isAdmin) {
+      setActiveSectionState('admin-login');
+      return;
+    }
+
+    if (!isAuthenticated && !publicSections.includes(section)) {
+      toast.error('Please log in to continue');
+      setActiveSectionState('login');
+      return;
+    }
+
+    setActiveSectionState(section);
+  };
 
   useEffect(() => {
     async function fetchUser() {
@@ -45,6 +68,19 @@ export default function App() {
     }
 
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/reset-password') {
+      setActiveSection('reset-password');
+    } else if (path === '/admin/login') {
+      setActiveSection('admin-login');
+    } else if (path === '/admin') {
+      setActiveSection('admin');
+    } else if (path === '/auth/success') {
+      setActiveSection('auth-success');
+    }
   }, []);
 
   // Called by auth pages when navigation should change
@@ -62,39 +98,67 @@ export default function App() {
     setActiveSection('home');
   };
 
+  const handleAdminAuthSuccess = (userData) => {
+    setUser(userData || null);
+    setActiveSection('admin');
+  };
+
   const handleUpgradeToPremium = () => {
     setActiveSection('premium');
   };
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      // ignore client-side logout errors
+    } finally {
+      setUser(null);
+      setActiveSection('login');
+    }
+  };
+
   // Auth pages don't need header/footer
-  if (activeSection === 'login') {
+  if (
+    activeSection === 'login' ||
+    activeSection === 'register' ||
+    activeSection === 'forgot' ||
+    activeSection === 'reset-password' ||
+    activeSection === 'admin-login' ||
+    activeSection === 'auth-success'
+  ) {
     return (
       <ThemeProvider>
-        <LoginPage
-          onNavigate={handleAuthNavigation}
-          onAuthSuccess={handleAuthSuccess}
-        />
-        <Toaster />
-      </ThemeProvider>
-    );
-  }
-
-  if (activeSection === 'register') {
-    return (
-      <ThemeProvider>
-        <RegisterPage
-          onNavigate={handleAuthNavigation}
-          onAuthSuccess={handleAuthSuccess}
-        />
-        <Toaster />
-      </ThemeProvider>
-    );
-  }
-
-  if (activeSection === 'forgot') {
-    return (
-      <ThemeProvider>
-        <ForgotPasswordPage onNavigate={handleAuthNavigation} />
+        {activeSection === 'login' && (
+          <LoginPage
+            onNavigate={handleAuthNavigation}
+            onAuthSuccess={handleAuthSuccess}
+          />
+        )}
+        {activeSection === 'register' && (
+          <RegisterPage
+            onNavigate={handleAuthNavigation}
+            onAuthSuccess={handleAuthSuccess}
+          />
+        )}
+        {activeSection === 'forgot' && (
+          <ForgotPasswordPage onNavigate={handleAuthNavigation} />
+        )}
+        {activeSection === 'reset-password' && (
+          <ResetPasswordPage onNavigate={handleAuthNavigation} />
+        )}
+        {activeSection === 'admin-login' && (
+          <AdminLoginPage
+            onNavigate={handleAuthNavigation}
+            onAdminAuthSuccess={handleAdminAuthSuccess}
+          />
+        )}
+        {activeSection === 'auth-success' && (
+          <AuthSuccessPage
+            onNavigate={handleAuthNavigation}
+            onAuthSuccess={handleAuthSuccess}
+          />
+        )}
         <Toaster />
       </ThemeProvider>
     );
@@ -103,7 +167,12 @@ export default function App() {
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 transition-colors duration-500">
-        <Header activeSection={activeSection} setActiveSection={setActiveSection} />
+        <Header
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          currentUser={user}
+          onLogout={handleLogout}
+        />
         
         <main className="relative">
           {activeSection === 'home' && <Hero setActiveSection={setActiveSection} />}
@@ -120,6 +189,13 @@ export default function App() {
           {activeSection === 'about' && <AboutPage />}
           {activeSection === 'contact' && <ContactPage />}
           {activeSection === 'premium' && <PremiumPage />}
+          {activeSection === 'profile' && (
+            <ProfilePage
+              user={user}
+              onProfileUpdated={setUser}
+              setActiveSection={setActiveSection}
+            />
+          )}
           {activeSection === 'admin' && <AdminPanel currentUser={user} />}
         </main>
 

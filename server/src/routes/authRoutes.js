@@ -5,6 +5,8 @@ const {
   login,
   refreshToken,
   logout,
+  forgotPassword,
+  resetPassword,
   oauthCallback,
 } = require('../controllers/authController');
 
@@ -22,6 +24,12 @@ router.post('/refresh', refreshToken);
 
 // Log out and clear cookies
 router.post('/logout', logout);
+
+// Forgot password
+router.post('/forgot-password', forgotPassword);
+
+// Reset password
+router.post('/reset-password', resetPassword);
 
 // OAUTH ROUTES - GOOGLE
 // Step 1: Start Google OAuth login

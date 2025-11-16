@@ -39,12 +39,14 @@ export function LoginPage({ onNavigate, onAuthSuccess }) {
     }
   };
 
+  const API_URL = 'http://localhost:5000';
+
   // For OAuth, we simply redirect the browser to the backend OAuth route
   const handleSocialLogin = (provider) => {
-    if (provider === 'Google') {
-      window.location.href = 'http://localhost:5000/api/auth/google';
-    } else if (provider === 'GitHub') {
-      window.location.href = 'http://localhost:5000/api/auth/github';
+    if (provider === 'google') {
+      window.location.href = `${API_URL}/api/auth/google`;
+    } else if (provider === 'github') {
+      window.location.href = `${API_URL}/api/auth/github`;
     }
   };
 
@@ -199,7 +201,7 @@ export function LoginPage({ onNavigate, onAuthSuccess }) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => handleSocialLogin('Google')}
+                  onClick={() => handleSocialLogin('google')}
                 >
                   <Chrome className="w-4 h-4 mr-2" />
                   Google
@@ -207,7 +209,7 @@ export function LoginPage({ onNavigate, onAuthSuccess }) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => handleSocialLogin('GitHub')}
+                  onClick={() => handleSocialLogin('github')}
                 >
                   <Github className="w-4 h-4 mr-2" />
                   GitHub

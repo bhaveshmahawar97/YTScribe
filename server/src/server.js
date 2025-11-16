@@ -2,11 +2,11 @@
 // This file loads environment variables, connects to MongoDB, and starts Express
 
 const dotenv = require('dotenv');
+// Load variables from .env file into process.env BEFORE requiring app
+dotenv.config();
+
 const app = require('./app');
 const { connectDB } = require('./config/db');
-
-// Load variables from .env file into process.env
-dotenv.config();
 
 async function startServer() {
   try {
