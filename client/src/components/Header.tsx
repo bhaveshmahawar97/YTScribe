@@ -122,30 +122,22 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
                 <IconButton
                   variant="outline"
                   size="icon"
-                  className="hidden md:flex p-0 rounded-full"
+                  className="hidden md:flex rounded-full p-0 w-10 h-10 bg-muted overflow-hidden"
                   onClick={() => {
                     if (!currentUser) {
                       setActiveSection('login');
                     }
                   }}
                 >
-                  {currentUser ? (
-                    <Avatar className="w-9 h-9 bg-muted flex items-center justify-center rounded-full overflow-hidden">
-                      {currentUser.avatarUrl ? (
-                        <AvatarImage src={currentUser.avatarUrl} alt={displayName} />
-                      ) : (
-                        <AvatarFallback className="text-xs font-semibold">
-                          {initials}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  ) : (
-                    <Avatar className="w-9 h-9 bg-muted flex items-center justify-center rounded-full overflow-hidden">
-                      <AvatarFallback className="text-muted-foreground">
-                        <User className="w-4 h-4" />
+                  <Avatar className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                    {currentUser?.avatarUrl ? (
+                      <AvatarImage src={currentUser.avatarUrl} className="object-cover w-full h-full" />
+                    ) : (
+                      <AvatarFallback className="bg-purple-500 text-white font-semibold text-lg flex items-center justify-center w-full h-full">
+                        {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
-                    </Avatar>
-                  )}
+                    )}
+                  </Avatar>
                 </IconButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">

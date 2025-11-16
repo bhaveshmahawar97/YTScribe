@@ -112,12 +112,12 @@ export function ProfilePage({ user, onProfileUpdated, setActiveSection }) {
         <Card className="p-8 border-primary/20 grid gap-8 md:grid-cols-[auto,1fr] items-start">
           {/* Avatar + basic info */}
           <div className="flex flex-col items-center gap-4">
-            <Avatar className="w-24 h-24 border-2 border-primary shadow-lg">
-              {previewUrl ? (
-                <AvatarImage src={previewUrl} alt={displayName} />
+            <Avatar className="w-24 h-24 rounded-full overflow-hidden border shadow-sm flex items-center justify-center">
+              {user?.avatarUrl ? (
+                <AvatarImage src={user.avatarUrl} className="object-cover w-full h-full" />
               ) : (
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl font-semibold">
-                  {initials}
+                <AvatarFallback className="bg-purple-500 text-white text-3xl font-bold flex items-center justify-center w-full h-full">
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               )}
             </Avatar>
