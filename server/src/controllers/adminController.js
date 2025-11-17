@@ -1,6 +1,6 @@
-const User = require('../models/userModel');
-const crypto = require('crypto');
-const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
+import crypto from 'crypto';
+import User from '../models/userModel.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens.js';
 
 // GET /api/admin/users
 // List users with basic pagination for admin panel
@@ -145,9 +145,4 @@ async function getDashboard(req, res, next) {
   }
 }
 
-module.exports = {
-  getUsers,
-  updateUserRole,
-  getDashboard,
-  adminLogin,
-};
+export { getUsers, updateUserRole, getDashboard, adminLogin };

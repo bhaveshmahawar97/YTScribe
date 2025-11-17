@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Connect to MongoDB Atlas using the connection string from environment variables
 async function connectDB() {
@@ -18,4 +18,4 @@ async function connectDB() {
   }
 }
 
-module.exports = { connectDB };
+export { connectDB };

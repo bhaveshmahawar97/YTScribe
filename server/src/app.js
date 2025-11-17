@@ -1,13 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
-const { passport, configurePassport } = require('./config/passport');
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const errorHandler = require('./middleware/errorHandler');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import { passport, configurePassport } from './config/passport.js';
+import adminRoutes from './routes/adminRoutes.js';
+import transcriptRoutes from './routes/transcriptRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
 
@@ -58,7 +59,10 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 
+//Mount transcript routes
+app.use("/api/transcript", transcriptRoutes);
+
 // Global error handler (keep this last)
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

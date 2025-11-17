@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 // User roles: regular users and admins
 // Auth providers: local (email/password), Google, GitHub
@@ -83,4 +83,4 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 const User = mongoose.model('User', userSchema);
 
-module.exports = User;
+export default User;

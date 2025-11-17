@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 // Generate a short-lived access token (used for most API requests)
 function generateAccessToken(user) {
@@ -36,7 +36,4 @@ function generateRefreshToken(user) {
   return jwt.sign(payload, secret, { expiresIn });
 }
 
-module.exports = {
-  generateAccessToken,
-  generateRefreshToken,
-};
+export { generateAccessToken, generateRefreshToken };

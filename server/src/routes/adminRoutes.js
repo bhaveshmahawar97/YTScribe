@@ -1,8 +1,9 @@
-const express = require('express');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
-const { getUsers, updateUserRole, getDashboard, adminLogin } = require('../controllers/adminController');
+import express from 'express';
+import authMw from '../middleware/authMiddleware.js';
+import { getUsers, updateUserRole, getDashboard, adminLogin } from '../controllers/adminController.js';
 
 const router = express.Router();
+const { protect, adminOnly } = authMw;
 
 router.post('/login', adminLogin);
 
@@ -11,4 +12,4 @@ router.get('/users', protect, adminOnly, getUsers);
 router.patch('/users/:id/role', protect, adminOnly, updateUserRole);
 router.get('/dashboard', protect, adminOnly, getDashboard);
 
-module.exports = router;
+export default router;

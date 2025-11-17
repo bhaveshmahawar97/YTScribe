@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Lock, Eye, EyeOff, Chrome, Github } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowLeft } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
@@ -101,6 +101,23 @@ export function LoginPage({ onNavigate, onAuthSuccess }) {
 
       {/* Right Panel - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
+        <div className="absolute top-4 left-4">
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex items-center gap-2"
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                onNavigate('home');
+              }
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+        </div>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

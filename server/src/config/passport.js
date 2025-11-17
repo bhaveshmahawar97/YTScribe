@@ -1,11 +1,11 @@
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const GitHubStrategy = require('passport-github2').Strategy;
-const User = require('../models/userModel');
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import User from '../models/userModel.js';
 
 // Configure Passport strategies for Google and GitHub OAuth
 // This function should be called once during app startup
-function configurePassport() {
+export function configurePassport() {
   const {
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
@@ -160,7 +160,4 @@ function configurePassport() {
   });
 }
 
-module.exports = {
-  passport,
-  configurePassport,
-};
+export { passport };

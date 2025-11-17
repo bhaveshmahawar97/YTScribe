@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const User = require('../models/userModel');
-const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import User from '../models/userModel.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -316,8 +316,7 @@ function oauthCallback(req, res) {
   return res.redirect(redirectUrl);
 }
 
-module.exports = {
-  // other exports: register, login, refreshToken, logout, forgotPassword, resetPassword
+export {
   register,
   login,
   refreshToken,

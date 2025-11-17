@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 // Middleware to protect routes - only logged-in users can access
-function protect(req, res, next) {
+export function protect(req, res, next) {
   try {
     const accessSecret = process.env.JWT_ACCESS_SECRET;
     if (!accessSecret) {
@@ -38,7 +38,7 @@ function protect(req, res, next) {
 }
 
 // Middleware to restrict access to admin users only
-function adminOnly(req, res, next) {
+export function adminOnly(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Authentication required' });
   }
@@ -50,7 +50,4 @@ function adminOnly(req, res, next) {
   next();
 }
 
-module.exports = {
-  protect,
-  adminOnly,
-};
+export default { protect, adminOnly };

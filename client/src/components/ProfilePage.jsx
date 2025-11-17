@@ -25,6 +25,13 @@ export function ProfilePage({ user, onProfileUpdated, setActiveSection }) {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) {
+      toast.error('Please log in to view your profile');
+      setActiveSection('login');
+    }
+  }, [user, setActiveSection]);
+
   const displayName = user?.name || user?.email || 'Guest';
   const initials = displayName
     .split(' ')
@@ -78,19 +85,7 @@ export function ProfilePage({ user, onProfileUpdated, setActiveSection }) {
   };
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-accent/5">
-        <Card className="max-w-md w-full p-8 text-center space-y-4 border-primary/20">
-          <h2 className="text-2xl font-semibold">You are in guest mode</h2>
-          <p className="text-sm text-muted-foreground">
-            Create an account or sign in to manage your profile, avatar, and learning preferences.
-          </p>
-          <Button onClick={() => setActiveSection('login')} className="w-full">
-            Go to Login
-          </Button>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
   return (

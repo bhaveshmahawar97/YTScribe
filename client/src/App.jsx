@@ -26,6 +26,8 @@ import { AdminLoginPage } from './components/Auth/AdminLoginPage.jsx';
 import { AuthSuccessPage } from './components/Auth/AuthSuccessPage.jsx';
 import { PremiumNewsletterPopup } from './components/PremiumNewsletterPopup';
 import { Footer } from './components/Footer';
+import { getTranscriptById } from './api/transcript';
+import { TranscriptDetail } from './components/TranscriptDetail';
 import { Toaster } from './components/ui/sonner';
 import { getCurrentUser, logoutUser } from './api/auth';
 import { toast } from 'sonner';
@@ -37,6 +39,7 @@ export default function App() {
   const [activeSection, setActiveSectionState] = useState('home');
   const [user, setUser] = useState(null); // store basic user info from backend
   const [isPremium, setIsPremium] = useState(false);
+  const [transcriptId, setTranscriptId] = useState(null);
 
   const publicSections = ['home', 'login', 'register', 'forgot', 'reset-password', 'admin-login', 'auth-success'];
   const isAuthenticated = !!user;
@@ -176,7 +179,9 @@ export default function App() {
         
         <main className="relative">
           {activeSection === 'home' && <Hero setActiveSection={setActiveSection} />}
-          {activeSection === 'transcribe' && <TranscriptionSection />}
+          {activeSection === 'transcribe' && (
+            <TranscriptionSection setActiveSection={setActiveSection} setTranscriptId={setTranscriptId} />
+          )}
           {activeSection === 'trending' && <TrendingNotes />}
           {activeSection === 'thumbnail' && <ThumbnailSection />}
           {activeSection === 'tags' && <TrendingTags />}
@@ -189,6 +194,9 @@ export default function App() {
           {activeSection === 'about' && <AboutPage />}
           {activeSection === 'contact' && <ContactPage />}
           {activeSection === 'premium' && <PremiumPage />}
+          {activeSection === 'transcript-detail' && transcriptId && (
+            <TranscriptDetail transcriptId={transcriptId} onBack={() => setActiveSection('transcribe')} />
+          )}
           {activeSection === 'profile' && (
             <ProfilePage
               user={user}

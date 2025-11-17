@@ -1,4 +1,4 @@
-const User = require('../models/userModel');
+import User from '../models/userModel.js';
 
 // GET /api/user/me
 // Return the profile of the currently logged-in user
@@ -56,7 +56,4 @@ async function updateMe(req, res, next) {
   }
 }
 
-module.exports = {
-  getMe,
-  updateMe,
-};
+export { getMe, updateMe };

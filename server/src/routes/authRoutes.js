@@ -1,6 +1,6 @@
-const express = require('express');
-const { passport } = require('../config/passport');
-const {
+import express from 'express';
+import { passport } from '../config/passport.js';
+import {
   register,
   login,
   refreshToken,
@@ -8,7 +8,7 @@ const {
   forgotPassword,
   resetPassword,
   oauthCallback,
-} = require('../controllers/authController');
+} from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -69,4 +69,4 @@ router.get(
   oauthCallback
 );
 
-module.exports = router;
+export default router;

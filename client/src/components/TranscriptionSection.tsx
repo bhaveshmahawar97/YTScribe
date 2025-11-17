@@ -5,10 +5,17 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Card } from './ui/card';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { createYoutubeTranscript } from '../api/transcript';
 
-export function TranscriptionSection() {
+interface Props {
+  setActiveSection?: (section: any) => void;
+  setTranscriptId?: (id: string) => void;
+}
+
+export function TranscriptionSection({ setActiveSection, setTranscriptId }: Props) {
   const [url, setUrl] = useState('');
+  const [withTimestamps, setWithTimestamps] = useState(false);
   const [loading, setLoading] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
@@ -18,18 +25,22 @@ export function TranscriptionSection() {
       toast.error('Please enter a YouTube URL');
       return;
     }
-
-    setLoading(true);
-    
-    // Simulate API call to Spring Boot backend
-    setTimeout(() => {
-      setVideoTitle('Sample Video Title - How to Build Amazing Apps');
-      setTranscription(
-        '# Video Notes\n\n## Introduction\n\nIn this video, we explore the fundamentals of building modern web applications...\n\n## Key Points\n\n- **Point 1**: Always start with proper planning and architecture\n- **Point 2**: Use modern frameworks and tools\n- **Point 3**: Focus on user experience\n\n## Conclusion\n\nBuilding great applications requires practice and dedication. Keep learning and experimenting!'
-      );
+    try {
+      setLoading(true);
+      const res = await createYoutubeTranscript(url, withTimestamps);
+      setVideoTitle(res.title || 'Transcript');
+      setTranscription(res.fullText || '');
+      if (res.transcriptId && setActiveSection && setTranscriptId) {
+        setTranscriptId(res.transcriptId);
+        setActiveSection('transcript-detail');
+      } else {
+        toast.success('Transcription completed!');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to transcribe video');
+    } finally {
       setLoading(false);
-      toast.success('Transcription completed!');
-    }, 2000);
+    }
   };
 
   const handleCopy = () => {
@@ -79,6 +90,10 @@ export function TranscriptionSection() {
                 className="pl-12 h-12"
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" checked={withTimestamps} onChange={(e) => setWithTimestamps(e.target.checked)} />
+              With timestamps
+            </label>
             <Button
               onClick={handleTranscribe}
               disabled={loading}
@@ -87,7 +102,7 @@ export function TranscriptionSection() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Processing...
+                  Transcribing… this may take a minute
                 </>
               ) : (
                 <>
