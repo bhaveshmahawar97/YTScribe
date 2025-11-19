@@ -5,7 +5,8 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { createPlaylist, importYoutubePlaylist } from '../api/playlist';
 
 interface AddPlaylistModalProps {
   isOpen: boolean;
@@ -30,89 +31,52 @@ export function AddPlaylistModal({ isOpen, onClose, onAdd }: AddPlaylistModalPro
   const [playlistLink, setPlaylistLink] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = async () => {
     if (!title.trim()) {
       toast.error('Please enter a playlist title');
       return;
     }
-
     if (!videoLink.trim()) {
       toast.error('Please enter at least one video link');
       return;
     }
-
-    setLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      const newPlaylist = {
+    try {
+      setLoading(true);
+      await createPlaylist({
         title: title.trim(),
-        description: description.trim(),
-        videos: [
-          {
-            id: Date.now().toString(),
-            title: 'New Video',
-            url: videoLink.trim(),
-            thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400',
-            transcribed: false,
-          },
-        ],
-      };
-
-      onAdd(newPlaylist);
+        firstVideoUrl: videoLink.trim(),
+        description: description.trim() || null,
+        category: null,
+        thumbnailUrl: null,
+      });
       toast.success('Playlist created successfully!');
+      onAdd({ title: title.trim(), description: description.trim(), videos: [] as any });
       resetForm();
       onClose();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create playlist');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleImportPlaylist = () => {
+  const handleImportPlaylist = async () => {
     if (!playlistLink.trim()) {
       toast.error('Please enter a playlist link');
       return;
     }
-
-    setLoading(true);
-
-    // Simulate API call to import playlist
-    setTimeout(() => {
-      const mockVideos = [
-        {
-          id: '1',
-          title: 'Introduction to React',
-          url: 'https://youtube.com/watch?v=example1',
-          thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400',
-          transcribed: false,
-        },
-        {
-          id: '2',
-          title: 'React Hooks Explained',
-          url: 'https://youtube.com/watch?v=example2',
-          thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400',
-          transcribed: false,
-        },
-        {
-          id: '3',
-          title: 'Building Real Projects',
-          url: 'https://youtube.com/watch?v=example3',
-          thumbnail: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400',
-          transcribed: false,
-        },
-      ];
-
-      const importedPlaylist = {
-        title: 'Imported Playlist',
-        description: 'Imported from YouTube',
-        videos: mockVideos,
-      };
-
-      onAdd(importedPlaylist);
+    try {
+      setLoading(true);
+      await importYoutubePlaylist(playlistLink.trim());
       toast.success('Playlist imported successfully!');
+      onAdd({ title: title.trim(), description: '', videos: [] as any });
       resetForm();
       onClose();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to import playlist');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const resetForm = () => {

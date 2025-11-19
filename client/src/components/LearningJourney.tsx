@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Plus, BookOpen, Play, Trash2, Edit, Download, Upload, Youtube } from 'lucide-react';
 import { Button } from './ui/button';
@@ -13,6 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { getMyPlaylists } from '../api/playlist';
+import { toast } from 'sonner';
 
 interface Video {
   id: string;
@@ -26,100 +28,42 @@ interface Video {
 }
 
 interface Playlist {
-  id: number;
+  _id: string;
   title: string;
-  description: string;
-  videos: Video[];
-  totalProgress: number;
-  createdAt: Date;
+  description?: string;
+  thumbnailUrl?: string;
+  progress: number;
+  videosCount: number;
+  createdAt: string;
 }
 
 export function LearningJourney() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatorPanelOpen, setIsCreatorPanelOpen] = useState(false);
-  const [playlists, setPlaylists] = useState<Playlist[]>([
-    {
-      id: 1,
-      title: 'Web Development Fundamentals',
-      description: 'Learn the basics of HTML, CSS, and JavaScript',
-      totalProgress: 50,
-      videos: [
-        {
-          id: '1',
-          title: 'HTML Basics Tutorial - Complete Guide for Beginners',
-          url: 'https://youtube.com/watch?v=example1',
-          thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400',
-          duration: '15:30',
-          channel: 'Code Academy',
-          status: 'completed',
-          progress: 100,
-        },
-        {
-          id: '2',
-          title: 'CSS Flexbox Complete Guide',
-          url: 'https://youtube.com/watch?v=example2',
-          thumbnail: 'https://images.unsplash.com/photo-1523437113738-bbd3cc89fb19?w=400',
-          duration: '22:45',
-          channel: 'Design Masters',
-          status: 'watching',
-          progress: 45,
-        },
-        {
-          id: '3',
-          title: 'JavaScript ES6 Features',
-          url: 'https://youtube.com/watch?v=example3',
-          thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400',
-          duration: '18:20',
-          channel: 'JS Pro',
-          status: 'towatch',
-          progress: 0,
-        },
-        {
-          id: '4',
-          title: 'Building Your First Website',
-          url: 'https://youtube.com/watch?v=example4',
-          thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400',
-          duration: '25:10',
-          channel: 'Web Dev Pro',
-          status: 'towatch',
-          progress: 0,
-        },
-      ],
-      createdAt: new Date(),
-    },
-    {
-      id: 2,
-      title: 'Demo Testing Playlist',
-      description: 'Test the video player and playlist functionality with real YouTube video',
-      totalProgress: 0,
-      videos: [
-        {
-          id: 'demo1',
-          title: 'Demo Video - Test Player',
-          url: 'https://youtu.be/Tn6-PIqc4UM',
-          thumbnail: 'https://img.youtube.com/vi/Tn6-PIqc4UM/maxresdefault.jpg',
-          duration: '10:00',
-          channel: 'Test Channel',
-          status: 'towatch',
-          progress: 0,
-        },
-      ],
-      createdAt: new Date(),
-    },
-  ]);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
+  const [playlists, setPlaylists] = useState([] as any);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState(null as any);
 
-  const handleAddPlaylist = (newPlaylist: Omit<Playlist, 'id' | 'createdAt'>) => {
-    const playlist: Playlist = {
-      ...newPlaylist,
-      id: playlists.length + 1,
-      createdAt: new Date(),
-    };
-    setPlaylists([...playlists, playlist]);
+  const loadPlaylists = async () => {
+    try {
+      const data = await getMyPlaylists({ sort: 'recent', limit: 30, page: 1 });
+      setPlaylists(data.playlists || []);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load playlists');
+    }
   };
 
-  const handleDeletePlaylist = (id: number) => {
-    setPlaylists(playlists.filter((p) => p.id !== id));
+  useEffect(() => {
+    loadPlaylists();
+  }, []);
+
+  const handleAddPlaylist = () => {
+    // After modal success, refresh list
+    loadPlaylists();
+  };
+
+  const handleDeletePlaylist = async (id: string) => {
+    // Optional: implement delete API if needed later
+    toast.message('Delete not implemented yet');
   };
 
   return (
@@ -176,16 +120,16 @@ export function LearningJourney() {
       </motion.div>
 
       {/* Playlists Grid */}
-      {selectedPlaylist ? (
+      {selectedPlaylistId ? (
         <EnhancedPlaylistViewer
-          playlist={selectedPlaylist}
-          onBack={() => setSelectedPlaylist(null)}
+          playlistId={selectedPlaylistId}
+          onBack={() => setSelectedPlaylistId(null)}
         />
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {playlists.map((playlist, index) => (
             <motion.div
-              key={playlist.id}
+              key={playlist._id}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -195,11 +139,11 @@ export function LearningJourney() {
                 {/* Playlist Header Image */}
                 <div
                   className="h-40 bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden"
-                  onClick={() => setSelectedPlaylist(playlist)}
+                  onClick={() => setSelectedPlaylistId(playlist._id)}
                 >
-                  {playlist.videos.length > 0 && playlist.videos[0].thumbnail ? (
+                  {playlist.thumbnailUrl ? (
                     <img
-                      src={playlist.videos[0].thumbnail}
+                      src={playlist.thumbnailUrl}
                       alt={playlist.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -211,13 +155,13 @@ export function LearningJourney() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-3 left-3 right-3">
                     <Badge variant="secondary" className="bg-white/20 backdrop-blur-sm text-white">
-                      {playlist.videos.length} videos
+                      {playlist.videosCount} videos
                     </Badge>
                   </div>
                 </div>
 
                 {/* Playlist Content */}
-                <div className="p-6" onClick={() => setSelectedPlaylist(playlist)}>
+                <div className="p-6" onClick={() => setSelectedPlaylistId(playlist._id)}>
                   <h3 className="text-xl mb-2 group-hover:text-primary transition-colors">
                     {playlist.title}
                   </h3>
@@ -229,10 +173,10 @@ export function LearningJourney() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
                     <div className="flex items-center gap-1">
                       <Play className="w-3 h-3" />
-                      <span>{playlist.videos.length} videos</span>
+                      <span>{playlist.videosCount} videos</span>
                     </div>
                     <span>
-                      {playlist.totalProgress}% complete
+                      {playlist.progress || 0}% complete
                     </span>
                   </div>
 
@@ -244,7 +188,7 @@ export function LearningJourney() {
                       className="flex-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedPlaylist(playlist);
+                        setSelectedPlaylistId(playlist._id);
                       }}
                     >
                       <Play className="w-4 h-4 mr-1" />
@@ -265,7 +209,7 @@ export function LearningJourney() {
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeletePlaylist(playlist.id);
+                        handleDeletePlaylist(playlist._id);
                       }}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />

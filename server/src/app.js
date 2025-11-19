@@ -8,6 +8,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import transcriptRoutes from './routes/transcriptRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import playlistRoutes from './routes/playlistRoutes.js';
+import courseRoutes from './routes/courseRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -58,6 +60,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/playlists', playlistRoutes);
+app.use('/api/courses', courseRoutes);
 
 //Mount transcript routes
 app.use("/api/transcript", transcriptRoutes);

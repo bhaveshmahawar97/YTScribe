@@ -5,8 +5,9 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useState } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import axios from 'axios';
 
 interface Course {
   id: number;
@@ -29,96 +30,33 @@ export function MarketplacePage() {
   const [category, setCategory] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
 
-  const courses: Course[] = [
-    {
-      id: 1,
-      title: 'Complete Web Development Bootcamp 2024',
-      description: 'Master HTML, CSS, JavaScript, React, Node.js and build real-world projects',
-      creator: 'Jane Smith',
-      thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600',
-      price: 1499,
-      rating: 4.8,
-      reviews: 2341,
-      students: 15420,
-      duration: '42 hours',
-      level: 'Beginner',
-      category: 'Programming',
-      bestseller: true,
-    },
-    {
-      id: 2,
-      title: 'React Advanced Patterns & Best Practices',
-      description: 'Deep dive into advanced React concepts, hooks, performance optimization',
-      creator: 'John Doe',
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=600',
-      price: 1999,
-      rating: 4.9,
-      reviews: 1823,
-      students: 8950,
-      duration: '28 hours',
-      level: 'Advanced',
-      category: 'Programming',
-      bestseller: true,
-    },
-    {
-      id: 3,
-      title: 'UI/UX Design Masterclass',
-      description: 'Learn Figma, design thinking, user research, prototyping and more',
-      creator: 'Sarah Wilson',
-      thumbnail: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600',
-      price: 1299,
-      rating: 4.7,
-      reviews: 1456,
-      students: 12340,
-      duration: '35 hours',
-      level: 'Intermediate',
-      category: 'Design',
-    },
-    {
-      id: 4,
-      title: 'Python for Data Science & Machine Learning',
-      description: 'Complete Python course with NumPy, Pandas, Matplotlib, Scikit-learn',
-      creator: 'Michael Chen',
-      thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600',
-      price: 1799,
-      rating: 4.8,
-      reviews: 2890,
-      students: 18760,
-      duration: '50 hours',
-      level: 'Intermediate',
-      category: 'Data Science',
-      bestseller: true,
-    },
-    {
-      id: 5,
-      title: 'Digital Marketing Complete Course',
-      description: 'SEO, Social Media, Email Marketing, Content Marketing & Analytics',
-      creator: 'Emma Davis',
-      thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600',
-      price: 999,
-      rating: 4.6,
-      reviews: 987,
-      students: 6543,
-      duration: '24 hours',
-      level: 'Beginner',
-      category: 'Marketing',
-    },
-    {
-      id: 6,
-      title: 'Mobile App Development with Flutter',
-      description: 'Build iOS and Android apps with Flutter & Dart from scratch',
-      creator: 'David Kumar',
-      thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600',
-      price: 1699,
-      rating: 4.7,
-      reviews: 1234,
-      students: 9876,
-      duration: '38 hours',
-      level: 'Intermediate',
-      category: 'Programming',
-    },
-  ];
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await axios.get('http://localhost:5000/api/courses', { withCredentials: true });
+        const mapped = (data?.courses || []).map((c: any, idx: number) => ({
+          id: idx + 1,
+          title: c.title,
+          description: c.description,
+          creator: c.creatorName || 'Creator',
+          thumbnail: c.thumbnailUrl,
+          price: c.price,
+          rating: c.rating || 4.8,
+          reviews: c.reviews || 0,
+          students: c.students || 0,
+          duration: c.duration || 'Self-paced',
+          level: (c.level || 'Beginner') as any,
+          category: c.category || 'General',
+          bestseller: false,
+        }));
+        setCourses(mapped);
+      } catch (e: any) {
+        toast.error(e?.response?.data?.message || e.message || 'Failed to load courses');
+      }
+    })();
+  }, []);
 
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

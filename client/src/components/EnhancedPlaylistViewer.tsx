@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Plus, Filter, BarChart3 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { getPlaylist, addVideo, updateVideoStatus } from '../api/playlist';
+import { toast } from 'sonner';
+import { Input } from './ui/input';
 
 interface Video {
   id: string;
@@ -29,30 +32,122 @@ interface Video {
   progress: number;
 }
 
-interface Playlist {
-  id: number;
+interface BackendVideo {
+  _id: string;
   title: string;
-  description: string;
-  videos: Video[];
-  totalProgress: number;
+  youtubeUrl: string;
+  videoId?: string;
+  duration?: number;
+  order?: number;
+  status: 'not_started' | 'watching' | 'completed';
+  thumbnailUrl?: string;
+}
+
+interface BackendPlaylist {
+  _id: string;
+  title: string;
+  description?: string;
+  progress: number;
+  videos: BackendVideo[];
 }
 
 interface EnhancedPlaylistViewerProps {
-  playlist: Playlist;
+  playlistId: string;
   onBack: () => void;
 }
 
-export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistViewerProps) {
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistViewerProps) {
+  const [backendPlaylist, setBackendPlaylist] = useState(null as any);
+  const [selectedVideo, setSelectedVideo] = useState(null as any);
   const [sortBy, setSortBy] = useState('order');
   const [filterBy, setFilterBy] = useState('all');
-  const [activeTab, setActiveTab] = useState<'details' | 'transcript' | 'notes' | 'analytics'>('details');
+  const [activeTab, setActiveTab] = useState('details' as any);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const loadPlaylist = async () => {
+    try {
+      const data = await getPlaylist(playlistId);
+      setBackendPlaylist(data.playlist);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load playlist');
+    }
+  };
+
+  useEffect(() => {
+    loadPlaylist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlistId]);
+
+  const mappedVideos: Video[] = useMemo(() => {
+    if (!backendPlaylist) return [];
+    const toLabel = (s: BackendVideo['status']): Video['status'] => {
+      if (s === 'completed') return 'completed';
+      if (s === 'watching') return 'watching';
+      return 'towatch';
+    };
+    const toDuration = (n?: number) => {
+      if (!n || n <= 0) return '0:00';
+      const m = Math.floor(n / 60);
+      const s = n % 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    };
+    return [...backendPlaylist.videos]
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((v) => ({
+        id: v._id,
+        title: v.title,
+        url: v.youtubeVideoId ? `https://www.youtube.com/embed/${v.youtubeVideoId}` : (v.youtubeUrl || ''),
+        thumbnail: v.thumbnailUrl || (v.videoId ? `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg` : ''),
+        duration: toDuration(v.duration),
+        channel: '',
+        status: toLabel(v.status),
+        progress: v.status === 'completed' ? 100 : 0,
+      }));
+  }, [backendPlaylist]);
 
   // Calculate playlist statistics
-  const completedCount = playlist.videos.filter(v => v.status === 'completed').length;
-  const watchingCount = playlist.videos.filter(v => v.status === 'watching').length;
-  const toWatchCount = playlist.videos.filter(v => v.status === 'towatch').length;
-  const progressPercentage = Math.round((completedCount / playlist.videos.length) * 100);
+  const completedCount = mappedVideos.filter(v => v.status === 'completed').length;
+  const watchingCount = mappedVideos.filter(v => v.status === 'watching').length;
+  const toWatchCount = mappedVideos.filter(v => v.status === 'towatch').length;
+  const progressPercentage = backendPlaylist?.progress ?? (mappedVideos.length ? Math.round((completedCount / mappedVideos.length) * 100) : 0);
+
+  const handleAddVideo = async () => {
+    if (!backendPlaylist) return;
+    if (!newTitle.trim() || !newUrl.trim()) {
+      toast.error('Provide title and video link');
+      return;
+    }
+    try {
+      setLoading(true);
+      const data = await addVideo(backendPlaylist._id, { title: newTitle.trim(), youtubeUrl: newUrl.trim() });
+      setBackendPlaylist(data.playlist);
+      setIsAddModalOpen(false);
+      setNewTitle('');
+      setNewUrl('');
+      toast.success('Video added');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to add video');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkCompleted = async () => {
+    if (!backendPlaylist || !selectedVideo) return;
+    try {
+      setLoading(true);
+      const data = await updateVideoStatus(backendPlaylist._id, selectedVideo.id, 'completed');
+      setBackendPlaylist(data.playlist);
+      toast.success('Marked as completed');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update status');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -72,11 +167,11 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
             {/* Left: Playlist Info */}
             <div className="flex-1">
               <h1 className="text-4xl mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                {playlist.title}
+                {backendPlaylist?.title || 'Playlist'}
               </h1>
-              <p className="text-muted-foreground mb-4">{playlist.description}</p>
+              <p className="text-muted-foreground mb-4">{backendPlaylist?.description}</p>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{playlist.videos.length} videos</span>
+                <span>{mappedVideos.length} videos</span>
                 <span>•</span>
                 <span>{completedCount} completed</span>
                 <span>•</span>
@@ -126,7 +221,7 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
                 </div>
               </div>
 
-              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white">
+              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white" onClick={() => setIsAddModalOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Video
               </Button>
@@ -169,7 +264,7 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
               </div>
 
               <VideoList
-                videos={playlist.videos}
+                videos={mappedVideos}
                 selectedVideo={selectedVideo}
                 onSelectVideo={setSelectedVideo}
                 sortBy={sortBy}
@@ -183,7 +278,30 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
             {selectedVideo ? (
               <div className="space-y-6">
                 {/* Video Player */}
-                <CustomVideoPlayer video={selectedVideo} />
+                <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+                  {selectedVideo?.url ? (
+                    <iframe
+                      src={selectedVideo.url}
+                      title={selectedVideo.title}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />)
+                  : (
+                    <CustomVideoPlayer video={selectedVideo} />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-xl">{selectedVideo.title}</h2>
+                  {backendPlaylist?.channelTitle && (
+                    <p className="text-sm text-muted-foreground">{backendPlaylist.channelTitle}</p>
+                  )}
+                </div>
+                <div>
+                  <Button onClick={handleMarkCompleted} disabled={loading}>
+                    Mark as completed
+                  </Button>
+                </div>
 
                 {/* Tabs */}
                 <div className="border-b border-primary/10">
@@ -220,7 +338,13 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
                   {activeTab === 'details' && <VideoDetails video={selectedVideo} />}
                   {activeTab === 'transcript' && <TranscriptPanel videoId={selectedVideo.id} />}
                   {activeTab === 'notes' && <NotesPanel videoId={selectedVideo.id} />}
-                  {activeTab === 'analytics' && <LearningAnalytics playlist={playlist} />}
+                  {activeTab === 'analytics' && backendPlaylist && <LearningAnalytics playlist={{
+                    id: 0,
+                    title: backendPlaylist.title,
+                    description: backendPlaylist.description || '',
+                    videos: mappedVideos,
+                    totalProgress: backendPlaylist.progress,
+                  }} />}
                 </div>
               </div>
             ) : (
@@ -241,6 +365,32 @@ export function EnhancedPlaylistViewer({ playlist, onBack }: EnhancedPlaylistVie
           </div>
         </div>
       </div>
+
+      {/* Add Video Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setIsAddModalOpen(false)} />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card border border-primary/20 rounded-xl w-full max-w-md p-6">
+            <h3 className="text-lg mb-4">Add Video</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm">Video Title</label>
+                <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Awesome video" />
+              </div>
+              <div>
+                <label className="text-sm">Video Link</label>
+                <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddVideo} disabled={loading}>
+                  {loading ? 'Adding...' : 'Add'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
