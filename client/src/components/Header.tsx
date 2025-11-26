@@ -117,31 +117,26 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
             <ThemeSelector />
 
             {/* Profile Dropdown / Login avatar */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <IconButton
-                  variant="outline"
-                  size="icon"
-                  className="hidden md:flex rounded-full p-0 w-10 h-10 bg-muted overflow-hidden"
-                  onClick={() => {
-                    if (!currentUser) {
-                      setActiveSection('login');
-                    }
-                  }}
-                >
-                  <Avatar className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
-                    {currentUser?.avatarUrl ? (
-                      <AvatarImage src={currentUser.avatarUrl} className="object-cover w-full h-full" />
-                    ) : (
-                      <AvatarFallback className="bg-purple-500 text-white font-semibold text-lg flex items-center justify-center w-full h-full">
-                        {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                </IconButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {currentUser && (
+            {currentUser ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <IconButton
+                    variant="outline"
+                    size="icon"
+                    className="hidden md:flex rounded-full p-0 w-10 h-10 bg-muted overflow-hidden"
+                  >
+                    <Avatar className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                      {currentUser?.avatarUrl ? (
+                        <AvatarImage src={currentUser.avatarUrl} className="object-cover w-full h-full" />
+                      ) : (
+                        <AvatarFallback className="bg-purple-500 text-white font-semibold text-lg flex items-center justify-center w-full h-full">
+                          {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
                   <>
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -183,9 +178,22 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
                       <span>Log out</span>
                     </DropdownMenuItem>
                   </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <IconButton
+                variant="outline"
+                size="icon"
+                className="hidden md:flex rounded-full p-0 w-10 h-10 bg-muted overflow-hidden"
+                onClick={() => setActiveSection('login')}
+              >
+                <Avatar className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                  <AvatarFallback className="bg-purple-500 text-white font-semibold text-lg flex items-center justify-center w-full h-full">
+                    U
+                  </AvatarFallback>
+                </Avatar>
+              </IconButton>
+            )}
 
             <IconButton
               variant="ghost"

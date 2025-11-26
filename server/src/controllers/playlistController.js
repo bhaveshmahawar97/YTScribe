@@ -1,5 +1,5 @@
 import { Playlist } from '../models/playlistModel.js';
-import { fetchYoutubePlaylist } from '../utils/youtube.js';
+import { fetchYoutubePlaylist, fetchVideoMetadata, extractVideoIdFromUrl } from '../utils/youtube.js';
 
 function parseYoutubeVideoId(url) {
   try {
@@ -39,7 +39,7 @@ function computeProgress(videos = []) {
 
 export async function createPlaylist(req, res, next) {
   try {
-    const { title, description, category, thumbnailUrl, firstVideoUrl } = req.body || {};
+    const { title, description, category, thumbnailUrl, firstVideoUrl, videos: inputVideos } = req.body || {};
     if (!title) {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
@@ -50,15 +50,62 @@ export async function createPlaylist(req, res, next) {
     }
 
     const videos = [];
+    let orderCounter = 1;
+    // Backward compatible single URL
     if (firstVideoUrl) {
-      const vid = parseYoutubeVideoId(firstVideoUrl);
-      videos.push({
-        title: 'Video 1',
-        youtubeUrl: firstVideoUrl,
-        videoId: vid || undefined,
-        order: 1,
-        status: 'not_started',
-      });
+      const id = extractVideoIdFromUrl(firstVideoUrl) || parseYoutubeVideoId(firstVideoUrl);
+      try {
+        if (id) {
+          const meta = await fetchVideoMetadata(id);
+          videos.push({
+            title: meta.title || `Video ${orderCounter}`,
+            description: meta.description,
+            thumbnailUrl: meta.thumbnails?.high?.url || meta.thumbnails?.medium?.url,
+            duration: typeof meta.duration === 'number' ? meta.duration : 0,
+            status: 'not_started',
+            youtubeUrl: firstVideoUrl,
+            youtubeVideoId: id,
+            channelTitle: meta.channelTitle,
+            channelId: meta.channelId,
+            publishedAt: meta.publishedAt ? new Date(meta.publishedAt) : undefined,
+            order: orderCounter,
+          });
+          orderCounter++;
+        }
+      } catch {
+        // fallback minimal entry if metadata fails
+        const vid = parseYoutubeVideoId(firstVideoUrl);
+        videos.push({ title: `Video ${orderCounter}`, youtubeUrl: firstVideoUrl, videoId: vid || undefined, order: orderCounter, status: 'not_started' });
+        orderCounter++;
+      }
+    }
+    // New array input of URLs/IDs
+    if (Array.isArray(inputVideos)) {
+      for (const item of inputVideos) {
+        const raw = typeof item === 'string' ? item : item?.url || item?.youtubeId;
+        if (!raw) continue;
+        const id = extractVideoIdFromUrl(raw) || parseYoutubeVideoId(raw);
+        if (!id) continue;
+        try {
+          const meta = await fetchVideoMetadata(id);
+          videos.push({
+            title: meta.title || `Video ${orderCounter}`,
+            description: meta.description,
+            thumbnailUrl: meta.thumbnails?.high?.url || meta.thumbnails?.medium?.url,
+            duration: typeof meta.duration === 'number' ? meta.duration : 0,
+            status: 'not_started',
+            youtubeUrl: typeof item === 'string' ? item : item?.url,
+            youtubeVideoId: id,
+            channelTitle: meta.channelTitle,
+            channelId: meta.channelId,
+            publishedAt: meta.publishedAt ? new Date(meta.publishedAt) : undefined,
+            order: orderCounter,
+          });
+          orderCounter++;
+        } catch {
+          // ignore invalid videos silently
+        }
+      }
     }
 
     const playlist = await Playlist.create({

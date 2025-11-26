@@ -4,6 +4,34 @@ function ensureEnv() {
   return key;
 }
 
+export function extractVideoIdFromUrl(url) {
+  try {
+    const str = String(url || '').trim();
+    // If raw 11-char ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+
+    // youtu.be short links
+    const shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (shortMatch) return shortMatch[1];
+
+    const u = new URL(str);
+    // Standard watch URL
+    const v = u.searchParams.get('v');
+    if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+
+    // Embedded or shorts paths: /embed/ID, /shorts/ID
+    const parts = u.pathname.split('/').filter(Boolean);
+    const last = parts[parts.length - 1] || '';
+    if (/^[a-zA-Z0-9_-]{11}$/.test(last)) return last;
+
+    return null;
+  } catch {
+    // Fallback regex search in plain string
+    const m = String(url || '').match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+}
+
 export function extractPlaylistId(url) {
   try {
     const u = new URL(url);
@@ -133,4 +161,111 @@ export async function fetchYoutubePlaylist(url) {
     thumbnailUrl: pickThumb(meta.thumbnails),
     videos: items,
   };
+}
+
+// Fetch single video metadata by YouTube ID
+export async function fetchVideoMetadata(youtubeId) {
+  const key = ensureEnv();
+  if (!youtubeId) {
+    const err = new Error('youtubeId is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const base = 'https://www.googleapis.com/youtube/v3';
+  const res = await fetch(
+    `${base}/videos?part=snippet,contentDetails,statistics&id=${encodeURIComponent(youtubeId)}&key=${key}`
+  );
+  const json = await res.json();
+  if (!res.ok || !json.items || json.items.length === 0) {
+    const err = new Error(json.error?.message || 'Video not found');
+    err.statusCode = res.status || 404;
+    throw err;
+  }
+
+  const v = json.items[0];
+  const sn = v.snippet || {};
+  const cd = v.contentDetails || {};
+  const seconds = iso8601ToSeconds(cd.duration || '');
+
+  return {
+    youtubeId,
+    title: sn.title,
+    description: sn.description,
+    channelTitle: sn.channelTitle,
+    channelId: sn.channelId,
+    duration: seconds,
+    thumbnails: sn.thumbnails || {},
+    publishedAt: sn.publishedAt,
+  };
+}
+
+// Fetch playlist videos metadata by playlistId, batching requests
+export async function fetchPlaylistVideos(playlistId) {
+  const key = ensureEnv();
+  if (!playlistId) {
+    const err = new Error('playlistId is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const base = 'https://www.googleapis.com/youtube/v3';
+  let nextPageToken = '';
+  const videoIds = [];
+  const rawSnippets = new Map();
+
+  // Collect video IDs
+  while (true) {
+    const itemsRes = await fetch(
+      `${base}/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50&pageToken=${nextPageToken}&key=${key}`
+    );
+    const itemsJson = await itemsRes.json();
+    if (!itemsRes.ok) {
+      const err = new Error(itemsJson.error?.message || 'Failed to fetch playlist items');
+      err.statusCode = itemsRes.status || 500;
+      throw err;
+    }
+    for (const it of itemsJson.items || []) {
+      const sn = it.snippet || {};
+      const vid = sn.resourceId?.videoId;
+      if (!vid) continue;
+      videoIds.push(vid);
+      rawSnippets.set(vid, sn);
+    }
+    nextPageToken = itemsJson.nextPageToken || '';
+    if (!nextPageToken) break;
+  }
+
+  // Batch fetch details
+  const results = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50);
+    const vRes = await fetch(
+      `${base}/videos?part=snippet,contentDetails&id=${batch.join(',')}&key=${key}`
+    );
+    const vJson = await vRes.json();
+    if (!vRes.ok) {
+      const err = new Error(vJson.error?.message || 'Failed to fetch video details');
+      err.statusCode = vRes.status || 500;
+      throw err;
+    }
+    for (const row of vJson.items || []) {
+      const id = row.id;
+      const sn = row.snippet || rawSnippets.get(id) || {};
+      const cd = row.contentDetails || {};
+      const seconds = iso8601ToSeconds(cd.duration || '');
+      results.push({
+        youtubeId: id,
+        title: sn.title,
+        description: sn.description,
+        channelTitle: sn.channelTitle,
+        channelId: sn.channelId,
+        duration: seconds,
+        thumbnails: sn.thumbnails || {},
+        publishedAt: sn.publishedAt,
+      });
+    }
+  }
+
+  return results;
 }

@@ -17,8 +17,10 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
   const [url, setUrl] = useState('');
   const [withTimestamps, setWithTimestamps] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [longHint, setLongHint] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
+  const [segments, setSegments] = useState<{ text: string; start: number; duration: number }[] | null>(null);
 
   const handleTranscribe = async () => {
     if (!url) {
@@ -27,9 +29,15 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
     }
     try {
       setLoading(true);
+      setLongHint(false);
+      setSegments(null);
+      const hintTimer = setTimeout(() => setLongHint(true), 3000);
       const res = await createYoutubeTranscript(url, withTimestamps);
       setVideoTitle(res.title || 'Transcript');
-      setTranscription(res.fullText || '');
+      setTranscription(res.fullText || res.transcript || '');
+      if (Array.isArray(res.segments) && res.segments.length) {
+        setSegments(res.segments);
+      }
       if (res.transcriptId && setActiveSection && setTranscriptId) {
         setTranscriptId(res.transcriptId);
         setActiveSection('transcript-detail');
@@ -40,6 +48,7 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
       toast.error(e?.message || 'Failed to transcribe video');
     } finally {
       setLoading(false);
+      setLongHint(false);
     }
   };
 
@@ -102,7 +111,7 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Transcribing… this may take a minute
+                  {longHint ? 'Captions unavailable, generating with AI…' : 'Transcribing… this may take a minute'}
                 </>
               ) : (
                 <>
@@ -116,7 +125,7 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
       </motion.div>
 
       {/* Results Section */}
-      {transcription && (
+      {(transcription || (segments && segments.length)) && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -134,13 +143,23 @@ export function TranscriptionSection({ setActiveSection, setTranscriptId }: Prop
                 </Button>
               </div>
             </div>
-
-            <Textarea
-              value={transcription}
-              onChange={(e) => setTranscription(e.target.value)}
-              className="min-h-[400px] font-mono text-sm"
-              placeholder="Your transcription will appear here..."
-            />
+            {segments && segments.length ? (
+              <div className="max-h-[420px] overflow-y-auto space-y-3 pr-2">
+                {segments.map((s, idx) => (
+                  <div key={idx} className="p-3 rounded-md bg-accent/10 border border-accent/20">
+                    <div className="text-xs text-muted-foreground mb-1">{new Date(s.start * 1000).toISOString().substr(11, 8)} • {Math.round(s.duration)}s</div>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{s.text}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Textarea
+                value={transcription}
+                onChange={(e) => setTranscription(e.target.value)}
+                className="min-h-[400px] font-mono text-sm"
+                placeholder="Your transcription will appear here..."
+              />
+            )}
           </Card>
         </motion.div>
       )}

@@ -8,7 +8,8 @@ import { Progress } from './ui/progress';
 import { useState } from 'react';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { createCourse } from '../api/courses';
 
 interface CourseCreatorPanelProps {
   isOpen: boolean;
@@ -56,23 +57,37 @@ export function CourseCreatorPanel({ isOpen, onClose, onCourseCreated }: CourseC
     setCourseData({ ...courseData, videos: newVideos });
   };
 
-  const handleUpload = () => {
-    setStep('uploading');
-    
-    // Simulate upload progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setUploadProgress(progress);
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setStep('preview');
-          toast.success('Course created successfully!');
-        }, 500);
-      }
-    }, 200);
+  const handleUpload = async () => {
+    try {
+      setStep('uploading');
+      setUploadProgress(10);
+      // Prepare payload
+      const payload: any = {
+        title: courseData.title.trim(),
+        description: courseData.description.trim(),
+        category: courseData.category,
+        price: parseFloat(courseData.price) || 0,
+        currency: 'INR',
+        level: 'Beginner',
+        status: 'pending',
+        thumbnailUrl: thumbnailPreview || '',
+        videos: [],
+      };
+
+      setUploadProgress(35);
+      const resp = await createCourse(payload);
+      setUploadProgress(85);
+
+      if (onCourseCreated) onCourseCreated(resp?.data?.course || resp?.course);
+      setUploadProgress(100);
+      setTimeout(() => {
+        setStep('preview');
+        toast.success('Course created successfully!');
+      }, 300);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create course');
+      setStep('pricing');
+    }
   };
 
   const handlePublish = () => {

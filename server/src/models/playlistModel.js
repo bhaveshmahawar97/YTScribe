@@ -14,6 +14,9 @@ const VideoSchema = new mongoose.Schema(
     },
     notesCount: { type: Number, default: 0 },
     transcriptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transcript' },
+    channelTitle: { type: String },
+    channelId: { type: String },
+    publishedAt: { type: Date },
 
     // For ordering in custom playlists
     order: { type: Number, default: 0 },
@@ -35,6 +38,7 @@ const PlaylistSchema = new mongoose.Schema(
     category: { type: String },
     thumbnailUrl: { type: String },
     source: { type: String, enum: ['youtube', 'custom'], default: 'youtube' },
+    visibility: { type: String, enum: ['public', 'private', 'unlisted'], default: 'private' },
     // YouTube metadata
     youtubePlaylistId: { type: String },
     channelTitle: { type: String },
