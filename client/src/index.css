@@ -4461,3 +4461,11 @@ body {
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
+
+/* Distraction-free viewing: hide global header when player is active */
+.site-header {
+  transition: transform 200ms ease;
+}
+body.player-active .site-header {
+  transform: translateY(-100%);
+}

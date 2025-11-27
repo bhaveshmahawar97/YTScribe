@@ -64,7 +64,7 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
     <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="sticky top-0 z-50 backdrop-blur-xl bg-background/70 border-b border-primary/20"
+      className="site-header sticky top-0 z-50 backdrop-blur-xl bg-background/70 border-b border-primary/20"
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">

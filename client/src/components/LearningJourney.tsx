@@ -66,8 +66,10 @@ export function LearningJourney() {
     toast.message('Delete not implemented yet');
   };
 
+  const wrapperClass = selectedPlaylistId ? 'w-full' : 'container mx-auto px-4 py-12 max-w-7xl';
+
   return (
-    <div className="container mx-auto px-4 py-12 max-w-7xl">
+    <div className={wrapperClass}>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

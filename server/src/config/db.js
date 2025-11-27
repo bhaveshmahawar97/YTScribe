@@ -10,10 +10,15 @@ async function connectDB() {
   }
 
   try {
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+      // Helps avoid long hangs on SRV/DNS issues and IPv6-only lookups
+      serverSelectionTimeoutMS: 20000,
+      family: 4,
+    });
     console.log('✅ MongoDB connected');
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message || error);
+    const detail = (error && (error.reason?.code || error.code || error.name)) ? ` (${error.reason?.code || error.code || error.name})` : '';
+    console.error(`❌ MongoDB connection error${detail}:`, error.message || error);
     process.exit(1);
   }
 }

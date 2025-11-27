@@ -81,6 +81,17 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlistId]);
 
+  // Auto-hide global header when a video is active (distraction-free)
+  useEffect(() => {
+    const cls = 'player-active';
+    if (selectedVideo) {
+      document.body.classList.add(cls);
+    } else {
+      document.body.classList.remove(cls);
+    }
+    return () => document.body.classList.remove(cls);
+  }, [selectedVideo]);
+
   const mappedVideos: Video[] = useMemo(() => {
     if (!backendPlaylist) return [];
     const toLabel = (s: BackendVideo['status']): Video['status'] => {
@@ -151,91 +162,93 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="border-b border-primary/10 bg-card/50 backdrop-blur-sm sticky top-16 z-40"
-      >
-        <div className="container mx-auto px-4 py-6">
-          <Button variant="ghost" onClick={onBack} className="mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Playlists
-          </Button>
+      {/* Header (hidden when a video is selected for distraction-free viewing) */}
+      {!selectedVideo && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border-b border-primary/10 bg-card/50 backdrop-blur-sm sticky top-16 z-40"
+        >
+          <div className="w-full px-4 py-6">
+            <Button variant="ghost" onClick={onBack} className="mb-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Playlists
+            </Button>
 
-          <div className="flex items-start justify-between gap-6">
-            {/* Left: Playlist Info */}
-            <div className="flex-1">
-              <h1 className="text-4xl mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                {backendPlaylist?.title || 'Playlist'}
-              </h1>
-              <p className="text-muted-foreground mb-4">{backendPlaylist?.description}</p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{mappedVideos.length} videos</span>
-                <span>•</span>
-                <span>{completedCount} completed</span>
-                <span>•</span>
-                <span>{watchingCount} in progress</span>
-              </div>
-            </div>
-
-            {/* Right: Progress Circle */}
-            <div className="flex items-center gap-6">
-              <div className="text-center">
-                <div className="relative w-32 h-32">
-                  <svg className="w-full h-full -rotate-90">
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      className="text-accent/20"
-                    />
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="url(#gradient)"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 56}`}
-                      strokeDashoffset={`${2 * Math.PI * 56 * (1 - progressPercentage / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-500"
-                    />
-                    <defs>
-                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="var(--primary)" />
-                        <stop offset="100%" stopColor="var(--accent)" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      {progressPercentage}%
-                    </span>
-                    <span className="text-xs text-muted-foreground">Complete</span>
-                  </div>
+            <div className="flex items-start justify-between gap-6">
+              {/* Left: Playlist Info */}
+              <div className="flex-1">
+                <h1 className="text-4xl mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  {backendPlaylist?.title || 'Playlist'}
+                </h1>
+                <p className="text-muted-foreground mb-4">{backendPlaylist?.description}</p>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>{mappedVideos.length} videos</span>
+                  <span>•</span>
+                  <span>{completedCount} completed</span>
+                  <span>•</span>
+                  <span>{watchingCount} in progress</span>
                 </div>
               </div>
 
-              <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white" onClick={() => setIsAddModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Video
-              </Button>
+              {/* Right: Progress Circle */}
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="relative w-32 h-32">
+                    <svg className="w-full h-full -rotate-90">
+                      <circle
+                        cx="64"
+                        cy="64"
+                        r="56"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        className="text-accent/20"
+                      />
+                      <circle
+                        cx="64"
+                        cy="64"
+                        r="56"
+                        stroke="url(#gradient)"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 56}`}
+                        strokeDashoffset={`${2 * Math.PI * 56 * (1 - progressPercentage / 100)}`}
+                        strokeLinecap="round"
+                        className="transition-all duration-500"
+                      />
+                      <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="var(--primary)" />
+                          <stop offset="100%" stopColor="var(--accent)" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        {progressPercentage}%
+                      </span>
+                      <span className="text-xs text-muted-foreground">Complete</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white" onClick={() => setIsAddModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Video
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="w-full px-4 py-6">
         <div className="flex gap-6">
           {/* Left Sidebar: Video List */}
           <div className="w-96 flex-shrink-0">
-            <div className="sticky top-40">
+            <div className={`sticky ${selectedVideo ? 'top-4' : 'top-40'}`}>
               {/* Filters */}
               <div className="flex gap-2 mb-4">
                 <Select value={sortBy} onValueChange={setSortBy}>
@@ -276,7 +289,18 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
           {/* Right: Video Player & Tabs */}
           <div className="flex-1 min-w-0">
             {selectedVideo ? (
-              <div className="space-y-6">
+              <div className="space-y-6 relative">
+                {/* Overlay Back Button to match Figma layout */}
+                <div className="absolute top-0 right-0 z-10">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedVideo(null as any)}
+                    className="bg-background/95 backdrop-blur-sm border-primary/20"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Overview
+                  </Button>
+                </div>
                 {/* Video Player */}
                 <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
                   {selectedVideo?.url ? (
