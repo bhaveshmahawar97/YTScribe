@@ -70,56 +70,58 @@ export function LearningJourney() {
 
   return (
     <div className={wrapperClass}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-12"
-      >
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <BookOpen className="w-8 h-8 text-primary" />
-              <h1 className="text-4xl md:text-5xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Learning Journey
-              </h1>
+      {/* Header: Only show when no playlist is selected */}
+      {!selectedPlaylistId && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-12"
+        >
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="w-8 h-8 text-primary" />
+                <h1 className="text-4xl md:text-5xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Learning Journey
+                </h1>
+              </div>
+              <p className="text-muted-foreground text-lg">
+                Organize your YouTube learning with custom playlists
+              </p>
             </div>
-            <p className="text-muted-foreground text-lg">
-              Organize your YouTube learning with custom playlists
-            </p>
-          </div>
 
-          {/* Add Playlist Button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white px-6 h-12"
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Add Content
-                </Button>
-              </motion.div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => setIsCreatorPanelOpen(true)}>
-                <Upload className="mr-2 h-4 w-4" />
-                <div>
-                  <p>Upload Course</p>
-                  <p className="text-xs text-muted-foreground">Create & sell custom courses</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsModalOpen(true)}>
-                <Youtube className="mr-2 h-4 w-4" />
-                <div>
-                  <p>Add YouTube Playlist</p>
-                  <p className="text-xs text-muted-foreground">Import from YouTube</p>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </motion.div>
+            {/* Add Playlist Button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white px-6 h-12"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add Content
+                  </Button>
+                </motion.div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setIsCreatorPanelOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  <div>
+                    <p>Upload Course</p>
+                    <p className="text-xs text-muted-foreground">Create & sell custom courses</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsModalOpen(true)}>
+                  <Youtube className="mr-2 h-4 w-4" />
+                  <div>
+                    <p>Add YouTube Playlist</p>
+                    <p className="text-xs text-muted-foreground">Import from YouTube</p>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </motion.div>
+      )}
 
       {/* Playlists Grid */}
       {selectedPlaylistId ? (

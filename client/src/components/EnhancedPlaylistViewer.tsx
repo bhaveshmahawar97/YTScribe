@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Plus, Filter, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Filter, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -66,6 +66,15 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
   const [newTitle, setNewTitle] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [workMinutes, setWorkMinutes] = useState(25);
+  const [breakMinutes, setBreakMinutes] = useState(5);
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isBreak, setIsBreak] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+  const prevCollapsedRef = useRef<boolean>(false);
 
   const loadPlaylist = async () => {
     try {
@@ -91,6 +100,101 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
     }
     return () => document.body.classList.remove(cls);
   }, [selectedVideo]);
+
+  useEffect(() => {
+    let interval: any;
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setSecondsLeft((s) => {
+          if (s > 0) return s - 1;
+          const nextIsBreak = !isBreak;
+          setIsBreak(nextIsBreak);
+          return (nextIsBreak ? breakMinutes : workMinutes) * 60;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, isBreak, workMinutes, breakMinutes]);
+
+  useEffect(() => {
+    if (isFocusMode) {
+      // entering focus mode: remember current sidebar state and force collapse
+      prevCollapsedRef.current = isSidebarCollapsed;
+      setIsSidebarCollapsed(true);
+      document.body.classList.add('focus-mode');
+      // do not reset timer; preserve current remaining seconds
+    } else {
+      document.body.classList.remove('focus-mode');
+      setIsTimerRunning(false);
+      // restore previous sidebar state
+      setIsSidebarCollapsed(prevCollapsedRef.current);
+    }
+    return () => document.body.classList.remove('focus-mode');
+  }, [isFocusMode, isBreak, workMinutes, breakMinutes]);
+
+  // Fullscreen tracking and keyboard shortcut (desktop)
+  useEffect(() => {
+    const onFsChange = () => {
+      const el = fullscreenRef.current;
+      if (el) {
+        if (document.fullscreenElement === el) {
+          el.classList.add('is-fullscreen');
+        } else {
+          el.classList.remove('is-fullscreen');
+        }
+      }
+      if (!document.fullscreenElement && isFocusMode) {
+        // If user exited fullscreen via Esc, leave focus mode layout
+        setIsFocusMode(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === 'f' || e.key === 'F') && selectedVideo) {
+        e.preventDefault();
+        handleToggleFocus(true);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isFocusMode, selectedVideo]);
+
+  const requestFullscreenSafe = async () => {
+    try {
+      if (fullscreenRef.current && !document.fullscreenElement && window.innerWidth > 900) {
+        await fullscreenRef.current.requestFullscreen();
+        fullscreenRef.current.classList.add('is-fullscreen');
+      }
+    } catch (err) {
+      // Graceful fallback: log for devs; overlay focus mode still applies
+      console.warn('Fullscreen request was blocked or failed:', err);
+    }
+  };
+
+  const exitFullscreenSafe = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+      if (fullscreenRef.current) fullscreenRef.current.classList.remove('is-fullscreen');
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const handleToggleFocus = async (fromKeyboard = false) => {
+    if (!isFocusMode) {
+      setIsFocusMode(true);
+      // Only attempt fullscreen on user gesture (click or keydown)
+      await requestFullscreenSafe();
+    } else {
+      setIsFocusMode(false);
+      await exitFullscreenSafe();
+    }
+  };
 
   const mappedVideos: Video[] = useMemo(() => {
     if (!backendPlaylist) return [];
@@ -161,7 +265,7 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
   };
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen playlist-viewer-root ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Header (hidden when a video is selected for distraction-free viewing) */}
       {!selectedVideo && (
         <motion.div
@@ -247,8 +351,8 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
       <div className="w-full px-4 py-6">
         <div className="flex gap-6">
           {/* Left Sidebar: Video List */}
-          <div className="w-96 flex-shrink-0">
-            <div className={`sticky ${selectedVideo ? 'top-4' : 'top-40'}`}>
+          <div className="w-96 flex-shrink-0 playlist-sidebar">
+            <div className={`${'sticky'} ${selectedVideo ? 'top-4' : 'top-40'}`}>
               {/* Filters */}
               <div className="flex gap-2 mb-4">
                 <Select value={sortBy} onValueChange={setSortBy}>
@@ -289,8 +393,21 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
           {/* Right: Video Player & Tabs */}
           <div className="flex-1 min-w-0">
             {selectedVideo ? (
-              <div className="space-y-6 relative">
-                {/* Overlay Back Button to match Figma layout */}
+              <div ref={fullscreenRef} className={`${isFocusMode ? 'fixed inset-0 z-50 bg-black/95 p-6 overflow-auto' : ''} space-y-6 relative`}>
+                <div className="absolute left-0 top-0 z-10 sidebar-toggle-btn">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="bg-background/95 backdrop-blur-sm border-primary/20"
+                    title={isSidebarCollapsed ? 'Show playlist' : 'Hide playlist'}
+                  >
+                    {isSidebarCollapsed ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
                 <div className="absolute top-0 right-0 z-10">
                   <Button
                     variant="outline"
@@ -301,7 +418,6 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
                     Back to Overview
                   </Button>
                 </div>
-                {/* Video Player */}
                 <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
                   {selectedVideo?.url ? (
                     <iframe
@@ -310,21 +426,41 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
                       className="w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
-                    />)
-                  : (
+                    />
+                  ) : (
                     <CustomVideoPlayer video={selectedVideo} />
                   )}
                 </div>
-                <div className="space-y-1">
-                  <h2 className="text-xl">{selectedVideo.title}</h2>
-                  {backendPlaylist?.channelTitle && (
-                    <p className="text-sm text-muted-foreground">{backendPlaylist.channelTitle}</p>
-                  )}
-                </div>
-                <div>
-                  <Button onClick={handleMarkCompleted} disabled={loading}>
-                    Mark as completed
-                  </Button>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h2 className="text-xl">{backendPlaylist?.title}</h2>
+                    {backendPlaylist?.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {backendPlaylist.description.split(' ').slice(0, 50).join(' ')}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>Total: {mappedVideos.length}</span>
+                      <span>•</span>
+                      <span>Completed: {completedCount}</span>
+                      <span>•</span>
+                      <span>Progress: {progressPercentage}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleToggleFocus(false)}
+                      aria-pressed={isFocusMode}
+                      aria-expanded={isFocusMode}
+                      title={isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+                    >
+                      {isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+                    </Button>
+                    <Button onClick={handleMarkCompleted} disabled={loading}>
+                      Mark as completed
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Tabs */}
@@ -370,6 +506,48 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
                     totalProgress: backendPlaylist.progress,
                   }} />}
                 </div>
+
+                {isFocusMode && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 bg-card/90 border border-primary/20 rounded-xl p-4 w-64 text-sm">
+                    <div className="mb-2 font-medium">{isBreak ? 'Break' : 'Focus'} Timer</div>
+                    <div className="text-3xl mb-3">
+                      {Math.floor(secondsLeft / 60).toString().padStart(2, '0')}
+                      :
+                      {(secondsLeft % 60).toString().padStart(2, '0')}
+                    </div>
+                    <div className="flex gap-2 mb-3">
+                      <Button size="sm" onClick={() => setIsTimerRunning((r) => !r)}>
+                        {isTimerRunning ? 'Pause' : 'Start'}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setIsTimerRunning(false); setSecondsLeft((isBreak ? breakMinutes : workMinutes) * 60); }}>
+                        Reset
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span>Work (m)</span>
+                        <input type="number" className="w-20 bg-background border border-primary/20 rounded px-2 py-1" value={workMinutes}
+                          onChange={(e) => setWorkMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Break (m)</span>
+                        <input type="number" className="w-20 bg-background border border-primary/20 rounded px-2 py-1" value={breakMinutes}
+                          onChange={(e) => setBreakMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))} />
+                      </div>
+                    </div>
+                    {/* Exit affordance inside fullscreen */}
+                    <div className="mt-3">
+                      <Button size="sm" variant="ghost" onClick={() => handleToggleFocus(false)}>Exit</Button>
+                    </div>
+                  </div>
+                )}
+
+                {isFocusMode && (
+                  <div className="fixed top-6 right-6 bottom-6 w-[360px] bg-card/95 border border-primary/20 rounded-xl overflow-auto p-4 z-[60]">
+                    <h3 className="text-sm mb-2 text-muted-foreground">Notes</h3>
+                    <NotesPanel videoId={selectedVideo.id} />
+                  </div>
+                )}
               </div>
             ) : (
               <motion.div

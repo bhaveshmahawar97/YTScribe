@@ -61,6 +61,17 @@ export function CustomVideoPlayer({ video }: CustomVideoPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // Add/remove a class on the body when video is playing to hide floating overlays like chat
+  useEffect(() => {
+    const cls = 'video-playing';
+    if (isPlaying) {
+      document.body.classList.add(cls);
+    } else {
+      document.body.classList.remove(cls);
+    }
+    return () => document.body.classList.remove(cls);
+  }, [isPlaying]);
+
   // Pomodoro Timer
   useEffect(() => {
     let interval: NodeJS.Timeout;

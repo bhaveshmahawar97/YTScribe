@@ -85,6 +85,12 @@ body {
   @apply bg-background text-foreground;
 }
 
+/* Hide floating chat button on player screens or during playback */
+body.player-active .chatbot-fab,
+body.video-playing .chatbot-fab {
+  display: none !important;
+}
+
 /* Modern UI Enhancements */
 .card-hover {
   @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
