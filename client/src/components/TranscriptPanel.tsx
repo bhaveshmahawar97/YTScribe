@@ -149,7 +149,7 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
           {/* Transcript Lines */}
           <div
             ref={transcriptRef}
-            className="space-y-2 max-h-[600px] overflow-y-auto pr-2"
+            className="space-y-2 pr-2"
           >
             {filteredTranscript.map((line) => (
               <motion.div
@@ -192,7 +192,7 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
             />
           </div>
 
-          <div className="bg-accent/5 rounded-lg p-6 max-h-[600px] overflow-y-auto">
+          <div className="bg-accent/5 rounded-lg p-6">
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
               {fullTranscriptText}
             </p>

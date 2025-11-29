@@ -1,343 +1,429 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize,
-  Settings,
-  StickyNote,
-  Clock,
-  Gauge,
-  Monitor,
-} from 'lucide-react';
+// client/src/components/CustomVideoPlayer.tsx
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Settings } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
-import { Badge } from './ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { Switch } from './ui/switch';
-import { Card } from './ui/card';
+import { saveVideoProgress } from '../api/playlist';
+
+// YouTube types on window
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
 
 interface Video {
   id: string;
   title: string;
   url: string;
-  thumbnail: string;
-  duration: string;
-  channel: string;
-  status: string;
-  progress: number;
+  thumbnail?: string;
+  duration?: string;
+  status?: string;
+  progress?: number;
+  sourceType: 'youtube' | 'upload';
 }
 
 interface CustomVideoPlayerProps {
   video: Video;
+  playlistId: string;
+  onStatusChange?: (status: string) => void;
+  initialProgress?: number;
+  isFocusMode?: boolean;
+  onToggleFocusMode?: () => void;
+  className?: string;
 }
 
-export function CustomVideoPlayer({ video }: CustomVideoPlayerProps) {
+function parseYoutubeId(url: string): string | null {
+  try {
+    if (!url) return null;
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) return u.pathname.split('/')[1] || null;
+    if (u.searchParams.get('v')) return u.searchParams.get('v');
+    const paths = u.pathname.split('/');
+    const idx = paths.indexOf('embed');
+    if (idx !== -1 && paths[idx + 1]) return paths[idx + 1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function ensureYoutubeApi(): Promise<void> {
+  if (window.YT?.Player) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (previous) previous();
+      resolve();
+    };
+    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const first = document.getElementsByTagName('script')[0];
+      if (first?.parentNode) first.parentNode.insertBefore(tag, first);
+      else document.head.appendChild(tag);
+    }
+  });
+}
+
+export function CustomVideoPlayer({
+  video,
+  playlistId,
+  onStatusChange,
+  initialProgress = 0,
+  isFocusMode = false,
+  onToggleFocusMode
+}: CustomVideoPlayerProps) {
+  // states
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(100);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [quality, setQuality] = useState('auto');
-  const [isTheaterMode, setIsTheaterMode] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [playerSize, setPlayerSize] = useState<'compact' | 'standard' | 'wide'>('standard');
-  const [isPomodoroActive, setIsPomodoroActive] = useState(false);
-  const [studyTime, setStudyTime] = useState(25);
-  const [breakTime, setBreakTime] = useState(5);
-  const [currentTimer, setCurrentTimer] = useState(25 * 60);
-  const [isBreak, setIsBreak] = useState(false);
+  const [showControls, setShowControls] = useState(false); // start hidden — show only on hover
+  const [playerReady, setPlayerReady] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
-  const playerRef = useRef<HTMLDivElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  // refs
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const timeUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSaveTimeRef = useRef<number>(0);
 
-  // Add/remove a class on the body when video is playing to hide floating overlays like chat
-  useEffect(() => {
-    const cls = 'video-playing';
-    if (isPlaying) {
-      document.body.classList.add(cls);
-    } else {
-      document.body.classList.remove(cls);
-    }
-    return () => document.body.classList.remove(cls);
-  }, [isPlaying]);
+  const playbackSpeeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-  // Pomodoro Timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPomodoroActive && currentTimer > 0) {
-      interval = setInterval(() => {
-        setCurrentTimer((prev) => prev - 1);
-      }, 1000);
-    } else if (currentTimer === 0) {
-      setIsBreak(!isBreak);
-      setCurrentTimer(isBreak ? studyTime * 60 : breakTime * 60);
-    }
-    return () => clearInterval(interval);
-  }, [isPomodoroActive, currentTimer, isBreak, studyTime, breakTime]);
-
+  // minimal formatTime
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && !isFocusMode) {
-        setShowControls(false);
+  // save progress helper
+  const saveProgress = useCallback(
+    async (status: 'watching' | 'paused' | 'completed') => {
+      try {
+        if (!ytPlayerRef.current) return;
+        const ct = Math.floor(ytPlayerRef.current.getCurrentTime() || 0);
+        await saveVideoProgress(playlistId, video.id, { currentTime: ct, status });
+        lastSaveTimeRef.current = Date.now();
+      } catch (e) {
+        console.error('Error saving progress:', e);
       }
-    }, 3000);
+    },
+    [playlistId, video.id]
+  );
+
+  // init YouTube player (unchanged lifecycle)
+  useEffect(() => {
+    if (video.sourceType !== 'youtube') return;
+    let mounted = true;
+    let playerInstance: any = null;
+
+    const init = async () => {
+      const vid = parseYoutubeId(video.url);
+      console.log('CustomVideoPlayer Init:', { 
+        videoUrl: video.url, 
+        extractedId: vid,
+        sourceType: video.sourceType 
+      });
+      
+      if (!vid) {
+        console.error('Invalid YouTube URL:', video.url);
+        return;
+      }
+
+      try {
+        await ensureYoutubeApi();
+        if (!mounted) return;
+
+        playerInstance = new window.YT.Player(playerRef.current, {
+          height: '100%',
+          width: '100%',
+          videoId: vid,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 0,
+            enablejsapi: 1,
+            fs: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (e: any) => {
+              if (!mounted) return;
+              ytPlayerRef.current = e.target;
+              setPlayerReady(true);
+              try {
+                const d = Math.floor(ytPlayerRef.current.getDuration() || 0);
+                if (d > 0) setDuration(d);
+              } catch {}
+              if (initialProgress) {
+                ytPlayerRef.current.seekTo(initialProgress, true);
+                setCurrentTime(initialProgress);
+              }
+              try {
+                ytPlayerRef.current.setVolume(volume);
+                setIsMuted(volume === 0);
+              } catch {}
+            },
+            onStateChange: (ev: any) => {
+              if (!mounted) return;
+              const st = ev.data;
+              if (st === window.YT.PlayerState.PLAYING) {
+                setIsPlaying(true);
+                onStatusChange?.('watching');
+              } else if (st === window.YT.PlayerState.PAUSED) {
+                setIsPlaying(false);
+                saveProgress('paused');
+                onStatusChange?.('paused');
+              } else if (st === window.YT.PlayerState.ENDED) {
+                setIsPlaying(false);
+                saveProgress('completed');
+                onStatusChange?.('completed');
+              }
+            },
+            onError: (err: any) => console.error('YT error', err)
+          }
+        });
+
+        timeUpdateInterval.current = setInterval(() => {
+          if (!mounted || !ytPlayerRef.current) return;
+          try {
+            const ct = Math.floor(ytPlayerRef.current.getCurrentTime() || 0);
+            const d = Math.floor(ytPlayerRef.current.getDuration() || 0);
+            setCurrentTime(ct);
+            if (d > 0) setDuration(d);
+            if (Date.now() - lastSaveTimeRef.current > 15000) {
+              saveProgress('watching');
+            }
+          } catch {}
+        }, 1000);
+      } catch (err) {
+        console.error('Error init YT', err);
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+      if (timeUpdateInterval.current) {
+        clearInterval(timeUpdateInterval.current);
+        timeUpdateInterval.current = null;
+      }
+      if (playerInstance?.destroy) {
+        try {
+          playerInstance.destroy();
+        } catch {}
+      }
+      ytPlayerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video.url, video.sourceType]);
+
+  // play/pause
+  const togglePlayPause = useCallback(() => {
+    if (!ytPlayerRef.current) return;
+    const st = ytPlayerRef.current.getPlayerState?.();
+    if (st === window.YT?.PlayerState.PLAYING) ytPlayerRef.current.pauseVideo();
+    else ytPlayerRef.current.playVideo();
+  }, []);
+
+  // seek
+  const handleSeek = (time: number) => {
+    if (!ytPlayerRef.current) return;
+    const t = Math.max(0, Math.min(time, duration || Number.MAX_SAFE_INTEGER));
+    ytPlayerRef.current.seekTo(t, true);
+    setCurrentTime(Math.floor(t));
+    saveProgress('watching');
   };
 
-  const sizeClasses = {
-    compact: 'aspect-video max-w-4xl',
-    standard: 'aspect-video max-w-6xl',
-    wide: 'aspect-video max-w-7xl',
+  // volume
+  useEffect(() => {
+    if (!ytPlayerRef.current) return;
+    try {
+      if (isMuted) ytPlayerRef.current.mute();
+      else {
+        ytPlayerRef.current.unMute();
+        ytPlayerRef.current.setVolume(volume);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [volume, isMuted]);
+
+  const handleVolumeChange = (v: number) => {
+    setVolume(v);
+    if (!ytPlayerRef.current) return;
+    try {
+      ytPlayerRef.current.setVolume(v);
+      setIsMuted(v === 0);
+    } catch (e) {
+      console.error(e);
+    }
   };
+
+  const toggleMute = () => {
+    if (!ytPlayerRef.current) return setIsMuted(s => !s);
+    try {
+      if (isMuted) {
+        ytPlayerRef.current.unMute();
+        ytPlayerRef.current.setVolume(volume || 50);
+        setIsMuted(false);
+      } else {
+        ytPlayerRef.current.mute();
+        setIsMuted(true);
+      }
+    } catch {
+      setIsMuted(s => !s);
+    }
+  };
+
+  // fullscreen toggle (same behavior applies when fullscreen because mouseenter/mouseleave are on container)
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch((e) => console.error(e));
+    } else {
+      document.exitFullscreen().catch((e) => console.error(e));
+    }
+  };
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  // --- THE KEY PART: show/hide controls only while mouse is over player container ---
+  // Show on mouse enter, hide on leave. This works both in normal and fullscreen.
+  // Always show controls in focus mode for better UX
+  useEffect(() => {
+    setShowControls(true);
+  }, []);
+
+  const handleMouseEnter = () => setShowControls(true);
+  const handleMouseLeave = () => setShowControls(false);
+
+  // Render
+  if (video.sourceType !== 'youtube') return <div>Unsupported video source type: {video.sourceType}</div>;
+  
+  if (!video.url) {
+    return <div className="w-full h-full bg-black flex items-center justify-center text-red-500">
+      <div className="text-center">
+        <p className="mb-2">Error: No video URL provided</p>
+        <p className="text-sm text-muted-foreground">Video: {video.title}</p>
+      </div>
+    </div>;
+  }
 
   return (
-    <div className={isTheaterMode ? 'fixed inset-0 z-50 bg-black/95 flex items-center justify-center' : ''}>
-      <motion.div
-        layout
-        className={`relative mx-auto ${sizeClasses[playerSize]} ${isTheaterMode ? 'w-full h-full' : ''}`}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setShowControls(true)}
-      >
-        <Card className="overflow-hidden border-primary/20 bg-black">
-          {/* Video Container */}
-          <div ref={playerRef} className="relative bg-black aspect-video">
-            {/* Video Placeholder (Replace with actual video iframe) */}
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-accent/20 to-primary/20">
-              <div className="text-center text-white">
-                <Play className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                <p className="text-sm opacity-75">Video Player</p>
-                <p className="text-xs opacity-50 mt-2">{video.title}</p>
+    <div
+      ref={containerRef}
+      className="relative w-full h-full bg-black rounded-lg overflow-hidden"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      // No global onMouseMove — we don't want controls toggled from outside the container
+    >
+      {/* YT player mount point */}
+      <div ref={playerRef} className="w-full h-full" />
+
+      {/* Controls visible only when showControls === true */}
+      <AnimatePresence>
+        {showControls && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4"
+          >
+            {/* Progress */}
+            <div className="w-full mb-2">
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={(v: number[]) => handleSeek(v[0])}
+                onValueCommit={(v: number[]) => handleSeek(v[0])}
+                className="h-2 cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-white/80 mt-1">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            {/* Ambient Mode Glow */}
-            <div className="absolute -inset-8 bg-gradient-to-r from-primary/20 to-accent/20 blur-3xl opacity-30 pointer-events-none" />
+            {/* Controls row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={togglePlayPause}>
+                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </Button>
 
-            {/* Focus Mode Overlay */}
-            <AnimatePresence>
-              {isFocusMode && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center pointer-events-none"
-                >
-                  <div className="text-white text-center space-y-4">
-                    <h3 className="text-2xl">Focus Mode</h3>
-                    <div className="text-6xl font-mono">{formatTime(currentTimer)}</div>
-                    <Badge variant="secondary" className="text-lg px-4 py-2">
-                      {isBreak ? 'Break Time' : 'Study Time'}
-                    </Badge>
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleMute}>
+                    {isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                  </Button>
+                  <div className="w-24">
+                    <Slider
+                      value={[isMuted ? 0 : volume]}
+                      max={100}
+                      step={1}
+                      onValueChange={(v: number[]) => handleVolumeChange(v[0])}
+                      onValueCommit={(v: number[]) => handleVolumeChange(v[0])}
+                      className="h-2"
+                    />
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Custom Controls Overlay */}
-            <AnimatePresence>
-              {showControls && !isFocusMode && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 flex flex-col justify-between p-4"
-                >
-                  {/* Top Controls */}
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-white text-lg">{video.title}</h3>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20"
-                        onClick={() => setIsFocusMode(!isFocusMode)}
-                      >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Focus
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20"
-                      >
-                        <StickyNote className="w-4 h-4 mr-2" />
-                        Notes
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Bottom Controls */}
-                  <div className="space-y-2">
-                    {/* Progress Bar */}
-                    <div className="group">
-                      <Slider
-                        value={[currentTime]}
-                        max={duration || 100}
-                        step={1}
-                        className="cursor-pointer"
-                        onValueChange={(value) => setCurrentTime(value[0])}
-                      />
-                      <div className="flex justify-between text-xs text-white/70 mt-1">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
-                      </div>
-                    </div>
-
-                    {/* Control Buttons */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {/* Play/Pause */}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20"
-                          onClick={() => setIsPlaying(!isPlaying)}
-                        >
-                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                        </Button>
-
-                        {/* Volume */}
-                        <div className="flex items-center gap-2 group">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-white hover:bg-white/20"
-                            onClick={() => setIsMuted(!isMuted)}
-                          >
-                            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                          </Button>
-                          <div className="w-0 group-hover:w-24 transition-all overflow-hidden">
-                            <Slider
-                              value={[volume]}
-                              max={100}
-                              step={1}
-                              onValueChange={(value) => setVolume(value[0])}
-                              className="w-24"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Time Display */}
-                        <span className="text-white text-sm ml-2">
-                          {formatTime(currentTime)} / {formatTime(duration)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Playback Speed */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="ghost" className="text-white hover:bg-white/20">
-                              <Gauge className="w-4 h-4 mr-2" />
-                              {playbackSpeed}x
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
-                              <DropdownMenuItem key={speed} onClick={() => setPlaybackSpeed(speed)}>
-                                {speed}x
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Player Size */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="ghost" className="text-white hover:bg-white/20">
-                              <Monitor className="w-4 h-4 mr-2" />
-                              Size
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => setPlayerSize('compact')}>
-                              Compact
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setPlayerSize('standard')}>
-                              Standard
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setPlayerSize('wide')}>
-                              Wide
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Settings */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
-                              <Settings className="w-5 h-5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem>Quality: {quality}</DropdownMenuItem>
-                            <DropdownMenuItem>Subtitles</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setIsTheaterMode(!isTheaterMode)}>
-                              Theater Mode
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Fullscreen */}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20"
-                        >
-                          {isTheaterMode ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Pomodoro Timer Panel */}
-          {!isFocusMode && (
-            <div className="p-4 bg-card border-t border-primary/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Pomodoro Timer</span>
-                  </div>
-                  <Switch checked={isPomodoroActive} onCheckedChange={setIsPomodoroActive} />
                 </div>
-                {isPomodoroActive && (
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground">
-                      {isBreak ? 'Break' : 'Study'}: {formatTime(currentTimer)}
-                    </span>
-                    <Badge variant="outline">{studyTime}m study / {breakTime}m break</Badge>
-                  </div>
-                )}
+
+                <span className="text-sm text-white/80 hidden sm:inline">{formatTime(currentTime)} / {formatTime(duration)}</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center justify-center rounded-md h-10 w-10 text-white hover:bg-white/10">
+                      <Settings className="h-5 w-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700 max-h-96 overflow-y-auto">
+                    <div className="px-3 py-2 text-white text-sm font-medium">Playback Speed</div>
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {playbackSpeeds.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setPlaybackRate(s);
+                            if (ytPlayerRef.current?.setPlaybackRate) ytPlayerRef.current.setPlaybackRate(s);
+                          }}
+                          className={`text-sm py-1 px-2 rounded ${playbackRate === s ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
+                        >
+                          {s === 1 ? 'Normal' : `${s}x`}
+                        </button>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleFullscreen}>
+                  {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                </Button>
               </div>
             </div>
-          )}
-        </Card>
-      </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

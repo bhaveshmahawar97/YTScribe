@@ -68,3 +68,10 @@ export function updateVideoStatus(playlistId: string, videoId: string, status: '
     body: JSON.stringify({ status }),
   });
 }
+
+export function saveVideoProgress(playlistId: string, videoId: string, payload: { currentTime: number; status: 'watching' | 'paused' | 'completed' }) {
+  return request(`/api/playlists/${playlistId}/videos/${videoId}/progress`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

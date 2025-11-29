@@ -30,6 +30,7 @@ interface Video {
   channel: string;
   status: 'completed' | 'watching' | 'towatch';
   progress: number;
+  sourceType: 'youtube' | 'upload';
 }
 
 interface BackendVideo {
@@ -211,16 +212,26 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
     };
     return [...backendPlaylist.videos]
       .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map((v) => ({
-        id: v._id,
-        title: v.title,
-        url: v.youtubeVideoId ? `https://www.youtube.com/embed/${v.youtubeVideoId}` : (v.youtubeUrl || ''),
-        thumbnail: v.thumbnailUrl || (v.videoId ? `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg` : ''),
-        duration: toDuration(v.duration),
-        channel: '',
-        status: toLabel(v.status),
-        progress: v.status === 'completed' ? 100 : 0,
-      }));
+      .map((v) => {
+        // Ensure we have a valid YouTube URL
+        let url = v.youtubeUrl || '';
+        // If youtubeVideoId exists but URL doesn't, construct the URL
+        if (!url && (v.youtubeVideoId || v.videoId)) {
+          const videoId = v.youtubeVideoId || v.videoId;
+          url = `https://www.youtube.com/watch?v=${videoId}`;
+        }
+        return {
+          id: v._id,
+          title: v.title,
+          url,
+          thumbnail: v.thumbnailUrl || (v.videoId ? `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg` : ''),
+          duration: toDuration(v.duration),
+          channel: '',
+          status: toLabel(v.status),
+          progress: v.status === 'completed' ? 100 : 0,
+          sourceType: 'youtube' as const,
+        };
+      });
   }, [backendPlaylist]);
 
   // Calculate playlist statistics
@@ -393,160 +404,224 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
           {/* Right: Video Player & Tabs */}
           <div className="flex-1 min-w-0">
             {selectedVideo ? (
-              <div ref={fullscreenRef} className={`${isFocusMode ? 'fixed inset-0 z-50 bg-black/95 p-6 overflow-auto' : ''} space-y-6 relative`}>
-                <div className="absolute left-0 top-0 z-10 sidebar-toggle-btn">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    className="bg-background/95 backdrop-blur-sm border-primary/20"
-                    title={isSidebarCollapsed ? 'Show playlist' : 'Hide playlist'}
-                  >
-                    {isSidebarCollapsed ? (
-                      <ChevronRight className="w-4 h-4" />
-                    ) : (
-                      <ChevronLeft className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-                <div className="absolute top-0 right-0 z-10">
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedVideo(null as any)}
-                    className="bg-background/95 backdrop-blur-sm border-primary/20"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Overview
-                  </Button>
-                </div>
-                <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-                  {selectedVideo?.url ? (
-                    <iframe
-                      src={selectedVideo.url}
-                      title={selectedVideo.title}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <CustomVideoPlayer video={selectedVideo} />
-                  )}
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <h2 className="text-xl">{backendPlaylist?.title}</h2>
-                    {backendPlaylist?.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {backendPlaylist.description.split(' ').slice(0, 50).join(' ')}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>Total: {mappedVideos.length}</span>
-                      <span>•</span>
-                      <span>Completed: {completedCount}</span>
-                      <span>•</span>
-                      <span>Progress: {progressPercentage}%</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleToggleFocus(false)}
-                      aria-pressed={isFocusMode}
-                      aria-expanded={isFocusMode}
-                      title={isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
-                    >
-                      {isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
-                    </Button>
-                    <Button onClick={handleMarkCompleted} disabled={loading}>
-                      Mark as completed
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="border-b border-primary/10">
-                  <div className="flex gap-1">
-                    {[
-                      { id: 'details', label: 'Details' },
-                      { id: 'transcript', label: 'Transcript' },
-                      { id: 'notes', label: 'Notes' },
-                      { id: 'analytics', label: 'Analytics' },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`px-4 py-3 transition-colors relative ${
-                          activeTab === tab.id
-                            ? 'text-primary'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {tab.label}
-                        {activeTab === tab.id && (
-                          <motion.div
-                            layoutId="activeTabUnderline"
-                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-accent"
-                          />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tab Content */}
-                <div>
-                  {activeTab === 'details' && <VideoDetails video={selectedVideo} />}
-                  {activeTab === 'transcript' && <TranscriptPanel videoId={selectedVideo.id} />}
-                  {activeTab === 'notes' && <NotesPanel videoId={selectedVideo.id} />}
-                  {activeTab === 'analytics' && backendPlaylist && <LearningAnalytics playlist={{
-                    id: 0,
-                    title: backendPlaylist.title,
-                    description: backendPlaylist.description || '',
-                    videos: mappedVideos,
-                    totalProgress: backendPlaylist.progress,
-                  }} />}
-                </div>
-
-                {isFocusMode && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 bg-card/90 border border-primary/20 rounded-xl p-4 w-64 text-sm">
-                    <div className="mb-2 font-medium">{isBreak ? 'Break' : 'Focus'} Timer</div>
-                    <div className="text-3xl mb-3">
-                      {Math.floor(secondsLeft / 60).toString().padStart(2, '0')}
-                      :
-                      {(secondsLeft % 60).toString().padStart(2, '0')}
-                    </div>
-                    <div className="flex gap-2 mb-3">
-                      <Button size="sm" onClick={() => setIsTimerRunning((r) => !r)}>
-                        {isTimerRunning ? 'Pause' : 'Start'}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setIsTimerRunning(false); setSecondsLeft((isBreak ? breakMinutes : workMinutes) * 60); }}>
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span>Work (m)</span>
-                        <input type="number" className="w-20 bg-background border border-primary/20 rounded px-2 py-1" value={workMinutes}
-                          onChange={(e) => setWorkMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))} />
+              <div ref={fullscreenRef} className={isFocusMode ? 'fixed inset-0 z-50 bg-black flex flex-col' : ''}>
+                {isFocusMode ? (
+                  // FOCUS MODE - ENHANCED DESIGN
+                  <>
+                    {/* Premium Header with Integrated Timer */}
+                    <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-gradient-to-r from-black via-black/95 to-black backdrop-blur-md">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                          className="text-white/60 hover:text-white transition-colors"
+                          title={isSidebarCollapsed ? 'Show playlist' : 'Hide playlist'}
+                        >
+                          {isSidebarCollapsed ? (
+                            <ChevronRight className="w-5 h-5" />
+                          ) : (
+                            <ChevronLeft className="w-5 h-5" />
+                          )}
+                        </Button>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="text-white font-semibold truncate text-base">{selectedVideo?.title}</h2>
+                          <p className="text-white/40 text-xs">Focus Mode</p>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span>Break (m)</span>
-                        <input type="number" className="w-20 bg-background border border-primary/20 rounded px-2 py-1" value={breakMinutes}
-                          onChange={(e) => setBreakMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))} />
+                      
+                      <div className="flex items-center gap-6 ml-4">
+                        {/* Timer Display & Controls */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="text-center px-4 py-2 bg-white/5 rounded-lg border border-white/10 backdrop-blur-sm">
+                            <div className="text-white/60 text-xs uppercase tracking-widest mb-1 flex items-center gap-2">
+                              <motion.span animate={{ opacity: isTimerRunning ? [0.5, 1, 0.5] : 1 }} transition={{ duration: 2, repeat: Infinity }}>
+                                {isBreak ? '🌟' : '🎯'}
+                              </motion.span>
+                              {isBreak ? 'Break' : 'Focus'}
+                            </div>
+                            <div className="text-2xl font-mono font-bold text-primary tracking-tight">
+                              {Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:{(secondsLeft % 60).toString().padStart(2, '0')}
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 text-xs bg-primary hover:bg-primary/90 text-white"
+                              onClick={() => setIsTimerRunning((r: boolean) => !r)}
+                              title={isTimerRunning ? 'Pause Timer' : 'Start Timer'}
+                            >
+                              {isTimerRunning ? '⏸' : '▶'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs border-white/20 text-white hover:bg-white/10"
+                              onClick={() => { setIsTimerRunning(false); setSecondsLeft((isBreak ? breakMinutes : workMinutes) * 60); }}
+                              title="Reset Timer"
+                            >
+                              🔄
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Timer Settings - Compact */}
+                        <div className="flex gap-3 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
+                          <div className="flex items-center gap-2">
+                            <label className="text-white/50 text-xs">Work:</label>
+                            <input
+                              type="number"
+                              className="w-12 bg-white/10 border border-white/20 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none focus:border-primary/50"
+                              value={workMinutes}
+                              onChange={(e) => setWorkMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                              min="1"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-white/50 text-xs">Break:</label>
+                            <input
+                              type="number"
+                              className="w-12 bg-white/10 border border-white/20 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none focus:border-primary/50"
+                              value={breakMinutes}
+                              onChange={(e) => setBreakMinutes(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                              min="1"
+                            />
+                          </div>
+                        </div>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleFocus(false)}
+                          className="text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                          title="Exit Focus Mode"
+                        >
+                          ✕
+                        </Button>
                       </div>
                     </div>
-                    {/* Exit affordance inside fullscreen */}
-                    <div className="mt-3">
-                      <Button size="sm" variant="ghost" onClick={() => handleToggleFocus(false)}>Exit</Button>
-                    </div>
-                  </div>
-                )}
 
-                {isFocusMode && (
-                  <div className="fixed top-6 right-6 bottom-6 w-[360px] bg-card/95 border border-primary/20 rounded-xl overflow-auto p-4 z-[60]">
-                    <h3 className="text-sm mb-2 text-muted-foreground">Notes</h3>
-                    <NotesPanel videoId={selectedVideo.id} />
-                  </div>
+                    {/* Main Content Grid */}
+                    <div className="flex-1 flex overflow-hidden min-h-0">
+                      {/* Left: Video Player */}
+                      <div className="flex-1 flex flex-col bg-black p-6 gap-4">
+                        <div className="bg-black rounded-xl overflow-hidden shadow-2xl border border-white/5 aspect-video max-h-[55vh]">
+                          <CustomVideoPlayer video={selectedVideo} playlistId={playlistId} />
+                        </div>
+                        
+                        {/* Video Info Card Below Player */}
+                        <div className="bg-gradient-to-r from-white/5 to-white/[2%] rounded-xl p-4 border border-white/10 backdrop-blur-sm">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-white/60 text-xs uppercase tracking-widest mb-1">Playing from</p>
+                              <p className="text-white font-medium">{backendPlaylist?.title}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-white/60 text-xs uppercase tracking-widest mb-1">Progress</p>
+                              <p className="text-primary font-bold text-lg">{progressPercentage}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Transcript (single mode) */}
+                      <aside className="w-96 bg-gradient-to-br from-white/5 to-white/[2%] border-l border-white/10 flex flex-col overflow-hidden" aria-label="Transcript">
+                        <div className="px-4 pt-6 pb-2 border-b border-white/10">
+                          <h3 className="text-sm font-semibold text-white/90">📝 Transcript</h3>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4">
+                          <div className="space-y-3">
+                            {/* Use the existing TranscriptPanel which renders transcript lines and search */}
+                            <TranscriptPanel videoId={selectedVideo.id} />
+                          </div>
+                        </div>
+                      </aside>
+                    </div>
+
+                  </>
+                ) : (
+                  // NORMAL MODE
+                  <>
+                    <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+                      <CustomVideoPlayer video={selectedVideo} playlistId={playlistId} />
+                    </div>
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <h2 className="text-xl">{backendPlaylist?.title}</h2>
+                          {backendPlaylist?.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {backendPlaylist.description.split(' ').slice(0, 50).join(' ')}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>Total: {mappedVideos.length}</span>
+                            <span>•</span>
+                            <span>Completed: {completedCount}</span>
+                            <span>•</span>
+                            <span>Progress: {progressPercentage}%</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => handleToggleFocus(false)}
+                            aria-pressed={isFocusMode}
+                            aria-expanded={isFocusMode}
+                            title={isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+                          >
+                            {isFocusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+                          </Button>
+                          <Button onClick={handleMarkCompleted} disabled={loading}>
+                            Mark as completed
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="border-b border-primary/10">
+                        <div className="flex gap-1">
+                          {[
+                            { id: 'transcript', label: '📝 Transcript' },
+                            { id: 'notes', label: '📌 Notes' },
+                            { id: 'details', label: 'ℹ️ Details' },
+                            { id: 'analytics', label: '📊 Analytics' },
+                          ].map((tab) => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setActiveTab(tab.id as any)}
+                              className={`px-4 py-3 transition-all relative text-sm ${
+                                activeTab === tab.id
+                                  ? 'text-primary font-medium'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {tab.label}
+                              {activeTab === tab.id && (
+                                <motion.div
+                                  layoutId="activeTabUnderline"
+                                  className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-accent rounded-t-full"
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-black/30 rounded-lg p-4 border border-primary/10 backdrop-blur-sm">
+                        {activeTab === 'details' && <VideoDetails video={selectedVideo} />}
+                        {activeTab === 'transcript' && <TranscriptPanel videoId={selectedVideo.id} />}
+                        {activeTab === 'notes' && <NotesPanel videoId={selectedVideo.id} />}
+                        {activeTab === 'analytics' && backendPlaylist && <LearningAnalytics playlist={{
+                          id: 0,
+                          title: backendPlaylist.title,
+                          description: backendPlaylist.description || '',
+                          videos: mappedVideos,
+                          totalProgress: backendPlaylist.progress,
+                        }} />}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
@@ -567,8 +642,6 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
           </div>
         </div>
       </div>
-
-      {/* Add Video Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setIsAddModalOpen(false)} />

@@ -281,7 +281,36 @@ export async function addVideoToPlaylist(req, res, next) {
     const videoId = parseYoutubeVideoId(youtubeUrl);
     const newOrder = typeof order === 'number' ? order : (playlist.videos?.length || 0) + 1;
 
-    playlist.videos.push({ title, youtubeUrl, videoId: videoId || undefined, order: newOrder, status: 'not_started' });
+    // Fetch video metadata if possible
+    let videoData = { 
+      title, 
+      youtubeUrl, 
+      youtubeVideoId: videoId, 
+      videoId: videoId || undefined, 
+      order: newOrder, 
+      status: 'not_started' 
+    };
+
+    if (videoId) {
+      try {
+        const meta = await fetchVideoMetadata(videoId);
+        videoData = {
+          ...videoData,
+          title: meta.title || title,
+          description: meta.description,
+          thumbnailUrl: meta.thumbnails?.high?.url || meta.thumbnails?.medium?.url,
+          duration: typeof meta.duration === 'number' ? meta.duration : 0,
+          channelTitle: meta.channelTitle,
+          channelId: meta.channelId,
+          publishedAt: meta.publishedAt ? new Date(meta.publishedAt) : undefined,
+        };
+      } catch (err) {
+        console.warn('Failed to fetch video metadata:', err.message);
+        // Continue with basic info if metadata fetch fails
+      }
+    }
+
+    playlist.videos.push(videoData);
     playlist.progress = computeProgress(playlist.videos);
 
     await playlist.save();
