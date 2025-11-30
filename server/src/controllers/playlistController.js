@@ -1,5 +1,7 @@
 import { Playlist } from '../models/playlistModel.js';
 import { fetchYoutubePlaylist, fetchVideoMetadata, extractVideoIdFromUrl } from '../utils/youtube.js';
+import { fetchTranscriptTextOnly, extractYouTubeId } from '../utils/transcriptFetcher.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 function parseYoutubeVideoId(url) {
   try {
@@ -368,5 +370,40 @@ export async function deletePlaylist(req, res, next) {
     return res.status(204).send();
   } catch (err) {
     next(err);
+  }
+}
+
+export async function generatePlaylistVideoNotes(req, res, next) {
+  try {
+    const { url, videoId } = req.body || {};
+    const id = extractYouTubeId(url || videoId);
+    if (!id) return res.status(400).json({ success: false, message: 'videoId or url required' });
+
+    const text = await fetchTranscriptTextOnly(id);
+    if (!text || !text.trim()) {
+      return res.status(200).json({ success: true, notes: 'No speech detected or transcript unavailable.' });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ success: false, message: 'Missing GEMINI_API_KEY' });
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = `You are a helpful tutor. Read the following video transcript and create clear, simple study notes.
+- Use human-readable language (easy to understand).
+- Structure with a clear 'Introduction', 'Key Concepts', and 'Summary'.
+- Use bullet points.
+- Avoid complex jargon unless necessary (and explain it if used).
+- TRANSCRIPT: ${text}`;
+
+    const response = await model.generateContent(prompt);
+    const notes = (response && response.response && typeof response.response.text === 'function')
+      ? response.response.text()
+      : (typeof response.text === 'function' ? response.text() : '');
+
+    return res.json({ success: true, notes: (notes || '').trim() });
+  } catch (err) {
+    console.error('Playlist Notes Error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to generate notes' });
   }
 }

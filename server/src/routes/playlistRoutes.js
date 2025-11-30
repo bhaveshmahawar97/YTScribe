@@ -10,6 +10,7 @@ import {
   deletePlaylist,
   importYoutubePlaylist,
   getUserPlaylists,
+  generatePlaylistVideoNotes,
 } from '../controllers/playlistController.js';
 
 const router = express.Router();
@@ -23,5 +24,8 @@ router.get('/:id', protect, getPlaylistById);
 router.post('/:id/videos', protect, addVideoToPlaylist);
 router.patch('/:id/videos/:videoId/status', protect, updateVideoStatus);
 router.delete('/:id', protect, deletePlaylist);
+
+// Generate transient AI notes for a video (no DB writes)
+router.post('/notes/generate', protect, generatePlaylistVideoNotes);
 
 export default router;

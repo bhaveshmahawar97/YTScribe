@@ -72,3 +72,51 @@ Get marketplace courses:
 
 ```
 curl "http://localhost:5000/api/courses?limit=12&sort=popular"
+
+
+🛠️ Transcription Setup Guide
+To run the transcription feature locally, you need Python and FFmpeg installed.
+
+1. Install Prerequisites
+Python: Download here.
+
+⚠️ IMPORTANT: Check the box "Add Python to PATH" during installation.
+
+FFmpeg:
+
+Windows: Run winget install Gyan.FFmpeg in PowerShell (Admin).
+
+Mac: Run brew install ffmpeg.
+
+2. Install Node Packages
+Run this in the server folder:
+
+Bash
+
+npm install youtube-transcript @deepgram/sdk youtube-dl-exec fs-extra dotenv
+
+3. Update your .env File
+
+Create or update server/.env. You must add the path to where FFmpeg is installed on your specific computer.
+
+How to find your path:
+
+Open Terminal/PowerShell.
+
+Run: where ffmpeg (Windows) or which ffmpeg (Mac).
+
+Copy the folder path (exclude ffmpeg.exe).
+
+Add this to .env:
+
+Ini, TOML
+
+# API Key (Get free at console.deepgram.com)
+DEEPGRAM_API_KEY=your_key_here
+
+# FFmpeg Path (REQUIRED)
+# Windows Users: Use Double Backslashes (\\)
+FFMPEG_PATH=C:\\Users\\YOUR_NAME\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg...\\bin
+
+# Mac Users:
+# FFMPEG_PATH=/usr/local/bin

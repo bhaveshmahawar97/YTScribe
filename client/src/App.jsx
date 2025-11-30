@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
-import { TranscriptionSection } from './components/TranscriptionSection';
+import TranscriptionSection from './components/TranscriptionSection';
 import { TrendingNotes } from './components/TrendingNotes';
 import { ThumbnailSection } from './components/ThumbnailSection';
 import { TrendingTags } from './components/TrendingTags';

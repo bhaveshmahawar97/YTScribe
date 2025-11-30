@@ -75,3 +75,10 @@ export function saveVideoProgress(playlistId: string, videoId: string, payload: 
     body: JSON.stringify(payload),
   });
 }
+
+export function generatePlaylistVideoNotes(payload: { url?: string; videoId?: string }) {
+  return request('/api/playlists/notes/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

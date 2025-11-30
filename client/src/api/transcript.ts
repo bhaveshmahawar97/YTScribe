@@ -15,3 +15,8 @@ export async function getTranscriptById(id: string) {
   const { data } = await api.get(`/api/transcript/${id}`);
   return data;
 }
+
+export async function generateSummary(id: string) {
+  const { data } = await api.post(`/api/transcript/${id}/summary`);
+  return data;
+}
