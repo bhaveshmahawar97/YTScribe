@@ -10,6 +10,7 @@
   "dependencies": {
     "@deepgram/sdk": "^3.13.0",
     "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.2",
     "bcrypt": "^5.1.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -26,6 +27,7 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
+    "uuid": "^13.0.0",
     "youtube-captions-scraper": "^2.0.3",
     "youtube-dl-exec": "^3.0.27",
     "youtube-transcript": "^1.2.1"

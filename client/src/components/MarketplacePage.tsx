@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ShoppingCart, Star, Filter, Search, TrendingUp, Award, Crown, Check } from 'lucide-react';
+import { ShoppingCart, Star, Filter, Search, TrendingUp, Award, Crown, Check, Eye } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -7,7 +7,11 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import axios from 'axios';
+import { getCurrentUser } from '../api/auth';
+import { getMyPlaylists } from '../api/playlist';
 
 interface Course {
   id: number;
@@ -31,6 +35,12 @@ export function MarketplacePage() {
   const [sortBy, setSortBy] = useState('popular');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [user, setUser] = useState<any>(null);
+  // Map course title -> playlistId the user owns
+  const [ownedCourses, setOwnedCourses] = useState<Map<string, string>>(new Map());
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [purchasedCourseTitle, setPurchasedCourseTitle] = useState('');
+  const [purchasedPlaylistId, setPurchasedPlaylistId] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -58,6 +68,95 @@ export function MarketplacePage() {
     })();
   }, []);
 
+  // Load current user for purchase gating
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getCurrentUser();
+        setUser(data.user || null);
+      } catch (e) {
+        setUser(null);
+      }
+    })();
+  }, []);
+
+  // Load user's playlists to determine purchased courses (by title -> playlistId)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!user || !user._id) {
+          setOwnedCourses(new Map());
+          return;
+        }
+        const res = await getMyPlaylists({ sort: 'recent', limit: 100, page: 1 });
+        const map = new Map<string, string>();
+        (res?.playlists || []).forEach((p: any) => {
+          if (p?.title && p?._id) map.set(String(p.title), String(p._id));
+        });
+        setOwnedCourses(map);
+      } catch {
+        setOwnedCourses(new Map());
+      }
+    })();
+  }, [user]);
+
+  // Handle redirect after payment success on Marketplace page
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const isSuccess = params.get('payment_success') === 'true';
+      const token = params.get('token');
+      const courseId = params.get('course_id');
+      if (token) {
+        const maxAge = 60 * 60; // 1 hour
+        document.cookie = `access_token=${token}; path=/; max-age=${maxAge}`;
+        try {
+          // Persist in localStorage as well for SPA auth and trigger immediate user refresh
+          localStorage.setItem('access_token', token);
+        } catch {}
+      }
+      if (isSuccess) {
+        // Celebrate and show modal
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 120, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 120, angle: 120, spread: 55, origin: { x: 1 } });
+        setShowSuccessModal(true);
+        // Refresh owned list immediately
+        (async () => {
+          try {
+            // Reload current user to restore session UI ASAP
+            try {
+              const cu = await getCurrentUser();
+              setUser(cu?.user || null);
+            } catch {}
+            const res = await getMyPlaylists({ sort: 'recent', limit: 100, page: 1 });
+            const map = new Map<string, string>();
+            (res?.playlists || []).forEach((p: any) => {
+              if (p?.title && p?._id) map.set(String(p.title), String(p._id));
+            });
+            setOwnedCourses(map);
+            // Try to guess purchased title by matching course id to loaded courses
+            if (courseId) {
+              const match = courses.find(c => String(c.id) === String(courseId));
+              if (match) {
+                setPurchasedCourseTitle(match.title);
+                const plId = map.get(match.title);
+                if (plId) setPurchasedPlaylistId(plId);
+              }
+            }
+          } catch {}
+        })();
+      }
+      if (isSuccess || token) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('payment_success');
+        url.searchParams.delete('token');
+        url.searchParams.delete('course_id');
+        window.history.replaceState({}, '', url.pathname + (url.search ? '?' + url.searchParams.toString() : ''));
+      }
+    } catch {}
+  }, [courses]);
+
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -73,11 +172,38 @@ export function MarketplacePage() {
     return 0;
   });
 
-  const handleBuyNow = (course: Course) => {
-    setSelectedCourse(course);
-    // Simulate Stripe checkout
-    toast.success(`Redirecting to Stripe checkout for "${course.title}"`);
-    console.log('Stripe checkout:', course);
+  const handleBuyNow = async (course: Course) => {
+    try {
+      setSelectedCourse(course);
+      // Require authentication before payment
+      if (!user || !user._id) {
+        toast.error('Please log in to purchase courses.');
+        window.location.href = '/login';
+        return;
+      }
+
+      toast.message('Creating PhonePe payment...', { description: course.title });
+      const { data } = await axios.post(
+        'http://localhost:5000/api/payment/initiate',
+        {
+          amount: course.price || 999,
+          userId: user._id,
+          courseData: {
+            id: String(course.id),
+            title: course.title,
+            description: course.description,
+            thumbnail: course.thumbnail,
+            videos: [],
+          },
+        },
+        { withCredentials: true }
+      );
+      const url = data?.url;
+      if (!url) throw new Error('No redirect URL received');
+      window.location.href = url;
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e.message || 'Failed to initiate payment');
+    }
   };
 
   return (
@@ -237,13 +363,31 @@ export function MarketplacePage() {
                   <div>
                     <p className="text-2xl">₹{course.price}</p>
                   </div>
-                  <Button
-                    onClick={() => handleBuyNow(course)}
-                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy Now
-                  </Button>
+                  {ownedCourses.has(course.title) ? (
+                    <Button
+                      onClick={() => {
+                        const plId = ownedCourses.get(course.title);
+                        if (plId) {
+                          const qs = new URLSearchParams({ open: plId }).toString();
+                          window.location.href = `/playlists?${qs}`;
+                        } else {
+                          window.location.href = '/playlists';
+                        }
+                      }}
+                      className="bg-slate-700 hover:bg-slate-600 text-white"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Course
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleBuyNow(course)}
+                      className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white"
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Buy Now
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>
@@ -290,6 +434,7 @@ export function MarketplacePage() {
           </div>
         </Card>
       </motion.div>
+      {/* Success modal handled via shadcn Dialog above */}
     </div>
   );
 }

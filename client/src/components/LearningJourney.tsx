@@ -17,6 +17,8 @@ import {
 import { getMyPlaylists } from '../api/playlist';
 
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 
 interface Video {
   id: string;
@@ -44,6 +46,8 @@ export function LearningJourney() {
   const [isCreatorPanelOpen, setIsCreatorPanelOpen] = useState(false);
   const [playlists, setPlaylists] = useState([] as any);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null as any);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [purchasedTitle, setPurchasedTitle] = useState('');
 
   const loadPlaylists = async () => {
     try {
@@ -56,6 +60,91 @@ export function LearningJourney() {
 
   useEffect(() => {
     loadPlaylists();
+  }, []);
+
+  // If navigated with ?open=<playlistId>, auto-open that playlist
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const openId = params.get('open');
+      if (!openId) return;
+      const exists = (playlists || []).some((p: any) => String(p._id) === String(openId));
+      if (exists) {
+        setSelectedPlaylistId(openId as any);
+        // Clean the param from URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('open');
+        window.history.replaceState({}, '', url.pathname + (url.search ? '?' + url.searchParams.toString() : ''));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [playlists]);
+
+  // If navigated with a highlight query (e.g., from View Course), scroll/focus that course
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const highlight = params.get('highlight');
+      if (!highlight) return;
+
+      const selector = `[data-playlist-title="${CSS.escape(highlight)}"]`;
+      // Allow list to render first
+      setTimeout(() => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-accent', 'rounded-lg');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-accent'), 2000);
+        }
+        // Clean the highlight param from URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('highlight');
+        window.history.replaceState({}, '', url.pathname + (url.search ? '?' + url.searchParams.toString() : ''));
+      }, 300);
+    } catch (e) {
+      // ignore
+    }
+  }, [playlists]);
+
+  // Show celebration if redirected after payment and handle token-based auto-login
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('payment_success') === 'true';
+      const courseTitle = params.get('course') || params.get('course_title');
+      const token = params.get('token');
+
+      if (token) {
+        // Save access token as a cookie so backend can read it (middleware checks 'access_token')
+        // Note: for production, prefer httpOnly cookie set by server
+        const maxAge = 60 * 60; // 1 hour
+        document.cookie = `access_token=${token}; path=/; max-age=${maxAge}`;
+      }
+
+      if (success) {
+        setPurchasedTitle(courseTitle ? decodeURIComponent(courseTitle) : 'your course');
+        // Fire confetti
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 120, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 120, angle: 120, spread: 55, origin: { x: 1 } });
+        setShowSuccessModal(true);
+        // Refresh playlists so the new one appears
+        loadPlaylists();
+      }
+
+      // Clean the URL
+      if (success || token) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('payment_success');
+        url.searchParams.delete('course');
+        url.searchParams.delete('course_title');
+        url.searchParams.delete('token');
+        window.history.replaceState({}, '', url.pathname + (url.search ? '?' + url.searchParams.toString() : ''));
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const handleAddPlaylist = () => {
@@ -133,6 +222,7 @@ export function LearningJourney() {
           {playlists.map((playlist, index) => (
             <motion.div
               key={playlist._id}
+              data-playlist-title={playlist.title}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -174,6 +264,23 @@ export function LearningJourney() {
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddPlaylist}
       />
+
+      {/* Payment Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment Successful!</DialogTitle>
+            <DialogDescription>
+              Thank you for purchasing <strong>{purchasedTitle}</strong>. It has been added to your Learning Journey.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowSuccessModal(false)} className="bg-gradient-to-r from-primary to-accent text-white">
+              Start Learning
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Course Creator Panel */}
       <CourseCreatorPanel

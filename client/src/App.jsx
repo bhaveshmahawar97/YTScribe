@@ -83,6 +83,10 @@ export default function App() {
       setActiveSection('admin');
     } else if (path === '/auth/success') {
       setActiveSection('auth-success');
+    } else if (path === '/login') {
+      setActiveSection('login');
+    } else if (path === '/playlists') {
+      setActiveSection('playlist');
     }
   }, []);
 
