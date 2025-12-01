@@ -20,8 +20,13 @@ async function request(path: string, options: RequestInit = {}) {
   return data;
 }
 
-export function getMyPlaylists() {
-  return request(`/api/playlists/me`, { method: 'GET' });
+export function getMyPlaylists(params?: { sort?: string; limit?: number; page?: number }) {
+  const query = new URLSearchParams();
+  if (params?.sort) query.set('sort', params.sort);
+  if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+  if (typeof params?.page === 'number') query.set('page', String(params.page));
+  const qs = query.toString();
+  return request(`/api/playlists/me${qs ? `?${qs}` : ''}`, { method: 'GET' });
 }
 
 export function getPlaylist(id: string) {
@@ -80,5 +85,22 @@ export function generatePlaylistVideoNotes(payload: { url?: string; videoId?: st
   return request('/api/playlists/notes/generate', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function deletePlaylist(id: string) {
+  return request(`/api/playlists/${id}`, { method: 'DELETE' });
+}
+
+export function updatePlaylist(id: string, data: { title?: string; description?: string }) {
+  return request(`/api/playlists/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function removeVideo(playlistId: string, videoId: string) {
+  return request(`/api/playlists/${playlistId}/videos/${videoId}`, {
+    method: 'DELETE',
   });
 }

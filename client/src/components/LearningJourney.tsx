@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Plus, BookOpen, Play, Trash2, Edit, Download, Upload, Youtube } from 'lucide-react';
+import { Plus, BookOpen, Upload, Youtube } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
+
 import { AddPlaylistModal } from './AddPlaylistModal';
 import { EnhancedPlaylistViewer } from './EnhancedPlaylistViewer';
+import PlaylistCard from './PlaylistCard.jsx';
+
 import { CourseCreatorPanel } from './CourseCreatorPanel';
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { getMyPlaylists } from '../api/playlist';
+
 import { toast } from 'sonner';
 
 interface Video {
@@ -61,10 +63,7 @@ export function LearningJourney() {
     loadPlaylists();
   };
 
-  const handleDeletePlaylist = async (id: string) => {
-    // Optional: implement delete API if needed later
-    toast.message('Delete not implemented yet');
-  };
+  // Edit/Delete actions are handled inside PlaylistCard via custom modals.
 
   const wrapperClass = selectedPlaylistId ? 'w-full' : 'container mx-auto px-4 py-12 max-w-7xl';
 
@@ -139,92 +138,13 @@ export function LearningJourney() {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -8, scale: 1.02 }}
             >
-              <Card className="h-full border-primary/20 hover:border-primary/50 transition-all bg-gradient-to-br from-card to-primary/5 overflow-hidden group cursor-pointer">
-                {/* Playlist Header Image */}
-                <div
-                  className="h-40 bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden"
-                  onClick={() => setSelectedPlaylistId(playlist._id)}
-                >
-                  {playlist.thumbnailUrl ? (
-                    <img
-                      src={playlist.thumbnailUrl}
-                      alt={playlist.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="w-16 h-16 text-white/50" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <Badge variant="secondary" className="bg-white/20 backdrop-blur-sm text-white">
-                      {playlist.videosCount} videos
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Playlist Content */}
-                <div className="p-6" onClick={() => setSelectedPlaylistId(playlist._id)}>
-                  <h3 className="text-xl mb-2 group-hover:text-primary transition-colors">
-                    {playlist.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {playlist.description || 'No description provided'}
-                  </p>
-
-                  {/* Stats */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1">
-                      <Play className="w-3 h-3" />
-                      <span>{playlist.videosCount} videos</span>
-                    </div>
-                    <span>
-                      {playlist.progress || 0}% complete
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-4 border-t border-primary/10">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlaylistId(playlist._id);
-                      }}
-                    >
-                      <Play className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Edit functionality
-                      }}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePlaylist(playlist._id);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+              <PlaylistCard
+                playlist={playlist}
+                onView={() => setSelectedPlaylistId(playlist._id)}
+                onRefresh={loadPlaylists}
+              />
             </motion.div>
           ))}
-
-          {/* Empty State */}
           {playlists.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}

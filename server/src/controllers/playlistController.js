@@ -20,6 +20,32 @@ function parseYoutubeVideoId(url) {
   }
 }
 
+export async function removeVideoFromPlaylist(req, res, next) {
+  try {
+    const userId = req.user?.id;
+    const { id, videoId } = req.params;
+
+    const playlist = await Playlist.findOne({ _id: id, user: userId });
+    if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' });
+
+    const v = playlist.videos.id(videoId);
+    if (!v) return res.status(404).json({ success: false, message: 'Video not found' });
+
+    v.deleteOne();
+    playlist.progress = computeProgress(playlist.videos);
+    await playlist.save();
+
+    const sorted = {
+      ...playlist.toObject(),
+      videos: [...(playlist.videos || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
+    };
+
+    return res.json({ success: true, playlist: sorted });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // NEW: get playlists for logged-in user (simple variant used by /me)
 export async function getUserPlaylists(req, res, next) {
   try {
@@ -365,9 +391,32 @@ export async function deletePlaylist(req, res, next) {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
-    const playlist = await Playlist.findOneAndDelete({ _id: id, user: userId });
-    if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' });
+    // Ensure ownership first
+    const owned = await Playlist.findOne({ _id: id, user: userId });
+    if (!owned) return res.status(404).json({ success: false, message: 'Playlist not found' });
+    await Playlist.findByIdAndDelete(id);
     return res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePlaylist(req, res, next) {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    const { title, description } = req.body || {};
+
+    // Ensure the playlist belongs to the user
+    const owned = await Playlist.findOne({ _id: id, user: userId });
+    if (!owned) return res.status(404).json({ success: false, message: 'Playlist not found' });
+
+    const update = {};
+    if (typeof title === 'string') update.title = title;
+    if (typeof description === 'string') update.description = description;
+
+    const updated = await Playlist.findByIdAndUpdate(id, update, { new: true });
+    return res.json({ success: true, playlist: updated });
   } catch (err) {
     next(err);
   }

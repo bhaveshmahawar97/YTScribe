@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Play, CheckCircle2, Clock, Eye } from 'lucide-react';
+import { Play, CheckCircle2, Clock, Eye, Trash2 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -21,6 +21,7 @@ interface VideoListProps {
   onSelectVideo: (video: Video) => void;
   sortBy: string;
   filterBy: string;
+  onDeleteVideo?: (videoId: string) => void;
 }
 
 const statusConfig = {
@@ -44,7 +45,7 @@ const statusConfig = {
   },
 };
 
-export function VideoList({ videos, selectedVideo, onSelectVideo, sortBy, filterBy }: VideoListProps) {
+export function VideoList({ videos, selectedVideo, onSelectVideo, sortBy, filterBy, onDeleteVideo }: VideoListProps) {
   // Filter videos
   let filteredVideos = videos;
   if (filterBy !== 'all') {
@@ -126,6 +127,22 @@ export function VideoList({ videos, selectedVideo, onSelectVideo, sortBy, filter
                     </div>
                   )}
                 </div>
+
+                {/* Delete Button */}
+                {onDeleteVideo && (
+                  <div className="flex items-start justify-end flex-shrink-0">
+                    <button
+                      className="text-slate-500 hover:text-red-500 transition-colors p-2 hover:bg-slate-800 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteVideo(video.id);
+                      }}
+                      aria-label="Remove video from playlist"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </Card>
           </motion.div>

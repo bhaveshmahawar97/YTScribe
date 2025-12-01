@@ -8,7 +8,7 @@ import { VideoList } from './VideoList';
 import { CustomVideoPlayer } from './CustomVideoPlayer';
 import { VideoDetails } from './VideoDetails';
 import { TranscriptPanel } from './TranscriptPanel';
-import { NotesPanel } from './NotesPanel';
+import { NotesPanel } from './NotesPanel.tsx';
 import { LearningAnalytics } from './LearningAnalytics';
 import {
   Select,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { getPlaylist, addVideo, updateVideoStatus } from '../api/playlist';
+import { getPlaylist, addVideo, updateVideoStatus, removeVideo } from '../api/playlist';
 import { toast } from 'sonner';
 import { Input } from './ui/input';
 
@@ -83,6 +83,33 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
       setBackendPlaylist(data.playlist);
     } catch (e: any) {
       toast.error(e.message || 'Failed to load playlist');
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!backendPlaylist) return;
+    const yes = window.confirm('Remove this video from the playlist?');
+    if (!yes) return;
+    // optimistic update
+    const prev = backendPlaylist;
+    const next = {
+      ...prev,
+      videos: (prev.videos || []).filter((v: any) => v._id !== videoId && v.id !== videoId),
+    };
+    setBackendPlaylist(next);
+    if (selectedVideo && (selectedVideo.id === videoId)) {
+      setSelectedVideo(null as any);
+    }
+    try {
+      await removeVideo(prev._id, videoId);
+      toast.success('Video removed');
+      // reload to ensure server state consistency
+      const data = await getPlaylist(prev._id);
+      setBackendPlaylist(data.playlist);
+    } catch (e: any) {
+      // revert on failure
+      setBackendPlaylist(prev);
+      toast.error(e.message || 'Failed to remove video');
     }
   };
 
@@ -397,6 +424,7 @@ export function EnhancedPlaylistViewer({ playlistId, onBack }: EnhancedPlaylistV
                 onSelectVideo={setSelectedVideo}
                 sortBy={sortBy}
                 filterBy={filterBy}
+                onDeleteVideo={handleDeleteVideo}
               />
             </div>
           </div>
