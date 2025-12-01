@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Sparkles, Zap, TrendingUp, Image as ImageIcon, BookOpen, Info } from 'lucide-react';
+import { Sparkles, Zap, ShoppingBag, Crown, BookOpen, Info } from 'lucide-react';
 import { Button } from './ui/button';
 import { useState } from 'react';
 import { QuickStartGuide } from './QuickStartGuide';
@@ -25,16 +25,16 @@ export function Hero({ setActiveSection }: HeroProps) {
       action: () => setActiveSection('playlist'),
     },
     {
-      icon: TrendingUp,
-      title: 'Trending Tags',
-      description: 'Auto-generate viral tags for maximum reach',
-      action: () => setActiveSection('tags'),
+      icon: ShoppingBag,
+      title: 'Course Marketplace',
+      description: 'Discover and purchase top-rated courses from expert creators.',
+      action: () => setActiveSection('marketplace'),
     },
     {
-      icon: ImageIcon,
-      title: 'Thumbnail Magic',
-      description: 'Download or create eye-catching thumbnails',
-      action: () => setActiveSection('thumbnail'),
+      icon: Crown,
+      title: 'Go Premium',
+      description: 'Unlock unlimited AI transcriptions, advanced analytics, and exclusive content.',
+      action: () => setActiveSection('premium'),
     },
   ];
 

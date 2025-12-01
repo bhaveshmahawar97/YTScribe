@@ -232,19 +232,6 @@ export function LoginPage({ onNavigate, onAuthSuccess }) {
                   GitHub
                 </Button>
               </div>
-
-              {/* Guest Login */}
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => {
-                  toast.success('Continuing as guest...');
-                  onNavigate('home');
-                }}
-              >
-                Continue as Guest
-              </Button>
             </form>
           </Card>
 
