@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Copy, Download, AlignLeft, ListOrdered } from 'lucide-react';
+import { Search, Copy, Download, AlignLeft, ListOrdered, Sparkles, MessageSquare, FileText, Scissors, Highlighter, Loader2 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import ReactMarkdown from 'react-markdown';
+import { generateSummary } from '../api/transcript';
+import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface TranscriptLine {
@@ -18,6 +20,8 @@ interface TranscriptLine {
 
 interface TranscriptPanelProps {
   videoId: string;
+  transcriptId?: string; // for AI actions
+  onSeek?: (seconds: number) => void; // jump video to time
 }
 
 const mockTranscript: TranscriptLine[] = [
@@ -33,13 +37,18 @@ const mockTranscript: TranscriptLine[] = [
   { id: 10, time: 68, text: "Remember, practice is key to mastering these skills." },
 ];
 
-export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
+export function TranscriptPanel({ videoId, transcriptId, onSeek }: TranscriptPanelProps) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>(mockTranscript);
   const [searchQuery, setSearchQuery] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiNotes, setAiNotes] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [userNotes, setUserNotes] = useState<{ id: string; time: number; text: string }[]>([]);
+  const [toolbar, setToolbar] = useState<{ visible: boolean; x: number; y: number; text: string; time: number | null }>({ visible: false, x: 0, y: 0, text: '', time: null });
 
   // Simulate video time updates
   useEffect(() => {
@@ -100,27 +109,116 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
 
   const fullTranscriptText = transcript.map(line => line.text).join(' ');
 
+  async function handleGenerateSummary() {
+    if (!transcriptId) {
+      // fallback: simple mock
+      setAiLoading(true);
+      setError(null);
+      setTimeout(() => {
+        setAiNotes('**Summary**\n\n- Key ideas extracted from transcript.\n- Add your API key to enable real summaries.');
+        setAiLoading(false);
+      }, 1200);
+      return;
+    }
+    try {
+      setAiLoading(true);
+      setError(null);
+      const res = await generateSummary(transcriptId);
+      setAiNotes(res?.summary || '');
+    } catch (e: any) {
+      setError(e?.message || 'Failed to generate summary');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function onTranscriptMouseUp() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setToolbar((t) => ({ ...t, visible: false, text: '' }));
+      return;
+    }
+    const text = sel.toString().trim();
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const containerRect = transcriptRef.current?.getBoundingClientRect();
+    const x = (rect.left - (containerRect?.left || 0)) + (rect.width / 2);
+    const y = rect.top - (containerRect?.top || 0) - 8;
+    // infer time from closest line element
+    let time: number | null = null;
+    let node: HTMLElement | null = range.startContainer as any;
+    while (node && node.id?.startsWith('transcript-line-') === false) {
+      node = node.parentElement;
+    }
+    if (node) {
+      const idStr = node.id.replace('transcript-line-', '');
+      const l = transcript.find((ln) => String(ln.id) === idStr);
+      time = l?.time ?? null;
+    }
+    if (text) setToolbar({ visible: true, x, y, text, time });
+  }
+
+  function saveSnippet() {
+    if (!toolbar.text) return;
+    const note = { id: `${Date.now()}`, time: toolbar.time ?? 0, text: toolbar.text };
+    setUserNotes((prev) => [note, ...prev]);
+    setToolbar((t) => ({ ...t, visible: false, text: '' }));
+    toast.success('Snippet saved to notes');
+  }
+
+  function summarizeSnippet() {
+    setAiLoading(true);
+    setAiNotes(`**Snippet Summary**\n\n${toolbar.text}`);
+    setTimeout(() => setAiLoading(false), 600);
+  }
+
+  function highlightSnippet() {
+    // visual only: simply close toolbar
+    setToolbar((t) => ({ ...t, visible: false }));
+  }
+
   return (
-    <Card className="p-6 border-primary/20">
-      <Tabs defaultValue="synced" className="w-full">
+    <Card className="p-0 border-primary/20 overflow-hidden">
+      {/* Sticky AI Action Bar */}
+      <div className="sticky top-0 z-10 backdrop-blur bg-slate-950/70 border-b border-slate-800 px-6 py-3 flex items-center gap-2">
+        <div className="font-medium text-sm mr-auto">AI Actions</div>
+        <Button size="sm" className="transition-all duration-300 bg-emerald-500 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/30" onClick={handleGenerateSummary}>
+          <Sparkles className="w-4 h-4 mr-2" />Generate Summary
+        </Button>
+        <Button variant="outline" size="sm" className="transition-all duration-300 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/10 hover:shadow-lg hover:shadow-emerald-500/30" onClick={() => setAiNotes(fullTranscriptText)}>
+          <FileText className="w-4 h-4 mr-2" />Generate AI Notes
+        </Button>
+        <Button variant="outline" size="sm" className="transition-all duration-300 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/10">
+          <MessageSquare className="w-4 h-4 mr-2" />AI Chat
+        </Button>
+        <Button variant="ghost" size="icon" className="transition-all duration-300 text-emerald-400 hover:text-emerald-300" onClick={handleDownloadTranscript}>
+          <Download className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <Tabs defaultValue="synced" className="w-full px-6 pb-6 pt-4">
         <div className="flex items-center justify-between mb-4">
           <TabsList>
-            <TabsTrigger value="synced" className="gap-2">
+            <TabsTrigger value="synced" className="gap-2 text-slate-400 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-cyan-400 rounded-none">
               <ListOrdered className="w-4 h-4" />
               Auto-Synced
             </TabsTrigger>
-            <TabsTrigger value="full" className="gap-2">
+            <TabsTrigger value="full" className="gap-2 text-slate-400 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-cyan-400 rounded-none">
               <AlignLeft className="w-4 h-4" />
               Full Transcript
+            </TabsTrigger>
+            <TabsTrigger value="notes" className="gap-2 text-slate-400 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-cyan-400 rounded-none">
+              <FileText className="w-4 h-4" />
+              User Notes
             </TabsTrigger>
           </TabsList>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopyTranscript}>
+            <Button variant="outline" size="sm" className="text-emerald-300 border-emerald-600/40 hover:bg-emerald-600/10" onClick={handleCopyTranscript}>
               <Copy className="w-4 h-4 mr-2" />
               Copy
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDownloadTranscript}>
+            <Button variant="outline" size="sm" className="text-emerald-300 border-emerald-600/40 hover:bg-emerald-600/10" onClick={handleDownloadTranscript}>
               <Download className="w-4 h-4 mr-2" />
               Download
             </Button>
@@ -149,7 +247,8 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
           {/* Transcript Lines */}
           <div
             ref={transcriptRef}
-            className="space-y-2 pr-2"
+            className="space-y-2 pr-2 overflow-y-auto max-h-[60vh] scrollbar-thin"
+            onMouseUp={onTranscriptMouseUp}
           >
             {filteredTranscript.map((line) => (
               <motion.div
@@ -157,16 +256,22 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
                 id={`transcript-line-${line.id}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className={`p-3 rounded-lg cursor-pointer transition-all ${
+                className={`p-3 rounded-lg cursor-text transition-all duration-200 border-l-4 ${
                   activeLineId === line.id
-                    ? 'bg-primary/10 border-2 border-primary/50'
-                    : 'bg-accent/5 hover:bg-accent/10 border-2 border-transparent'
+                    ? 'bg-cyan-900/20 border-cyan-400 shadow-[0_0_0_1px_rgba(8,145,178,0.2)]'
+                    : 'bg-slate-800/40 hover:bg-slate-700/40 border-transparent'
                 }`}
               >
                 <div className="flex gap-3">
-                  <Badge variant="outline" className="shrink-0">
-                    {formatTime(line.time)}
-                  </Badge>
+                  <button
+                    className="shrink-0"
+                    onClick={() => onSeek?.(line.time)}
+                    title="Jump to time"
+                  >
+                    <Badge variant="outline" className="transition-all duration-300 text-purple-300 border-purple-400/30 hover:underline underline-offset-4">
+                      {formatTime(line.time)}
+                    </Badge>
+                  </button>
                   <p className="text-sm leading-relaxed">{line.text}</p>
                 </div>
               </motion.div>
@@ -214,7 +319,78 @@ export function TranscriptPanel({ videoId }: TranscriptPanelProps) {
             </div>
           </div>
         </TabsContent>
+
+        {/* User Notes */}
+        <TabsContent value="notes" className="space-y-4">
+          {userNotes.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No notes yet. Select transcript text to save snippets.</div>
+          ) : (
+            <div className="space-y-3">
+              {userNotes.map((n) => (
+                <div key={n.id} className="p-3 rounded border border-slate-700 bg-slate-800/40">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="outline">{formatTime(n.time)}</Badge>
+                    <Button size="sm" variant="ghost" className="text-emerald-300 hover:text-emerald-200" onClick={() => onSeek?.(n.time)}>Jump</Button>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{n.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Floating Selection Toolbar */}
+      <AnimatePresence>
+        {toolbar.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="absolute z-20"
+            style={{ left: toolbar.x, top: toolbar.y }}
+          >
+            <div className="flex items-center gap-1 rounded-md bg-slate-700 text-emerald-300 border border-slate-600 shadow px-2 py-1">
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-300 hover:text-emerald-200" onClick={saveSnippet}>
+                <Scissors className="w-4 h-4 mr-1" />Save Snippet
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-300 hover:text-emerald-200" onClick={summarizeSnippet}>
+                <Sparkles className="w-4 h-4 mr-1" />Summarize AI
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-300 hover:text-emerald-200" onClick={highlightSnippet}>
+                <Highlighter className="w-4 h-4 mr-1" />Highlight
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Notes / Summary Output */}
+      {(aiLoading || aiNotes || error) && (
+        <div className="border-t border-slate-800 px-6 py-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm">AI Output</span>
+            {aiLoading && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+          </div>
+          {error && (
+            <div className="text-sm text-red-400">{error}</div>
+          )}
+          {!error && (
+            <div className="prose prose-invert max-w-none text-sm">
+              {aiLoading ? (
+                <div className="animate-pulse space-y-2">
+                  <div className="h-3 bg-slate-700 rounded w-3/4" />
+                  <div className="h-3 bg-slate-700 rounded w-2/3" />
+                  <div className="h-3 bg-slate-700 rounded w-1/2" />
+                </div>
+              ) : (
+                <ReactMarkdown>{aiNotes || 'No content yet.'}</ReactMarkdown>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

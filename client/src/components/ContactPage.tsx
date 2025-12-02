@@ -28,14 +28,14 @@ export function ContactPage() {
       role: 'UI/UX & Front-End Developer',
       email: 'bhaveshmahawar97@gmail.com',
       github: '#', // Placeholder
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+      image: '../public/Bhavesh.png',
     },
     {
       name: 'Rajesh Kayal',
       role: 'Back-End & AI Developer',
       email: 'rajeshkalay8001@gmail.com',
       github: 'https://github.com/rajesh-kayal-dev',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400',
+      image: '../public/Rajesh.png',
     },
   ];
 

@@ -50,4 +50,8 @@ const PlaylistSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Helpful indexes for fast user and analytics queries
+PlaylistSchema.index({ user: 1, updatedAt: -1 });
+PlaylistSchema.index({ user: 1, 'videos.status': 1 });
+
 export const Playlist = mongoose.models.Playlist || mongoose.model('Playlist', PlaylistSchema);

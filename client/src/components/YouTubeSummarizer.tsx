@@ -75,8 +75,10 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
   return (
     <div className="max-w-4xl mx-auto p-8">
       <div className="text-center mb-8">
-        <h1 className="mb-3">Free YouTube Video Summarizer</h1>
-        <p className="text-gray-600">
+        <h1 className="mb-3 bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-300 bg-clip-text text-transparent">
+          Free YouTube Video Summarizer
+        </h1>
+        <p className="text-slate-400">
           Batch summarize YouTube videos in seconds, generating comprehensive and in-depth summaries.
         </p>
       </div>
@@ -85,10 +87,10 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
       <div className="flex gap-2 mb-6 justify-center">
         <button
           onClick={() => setActiveTab('youtube')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
             activeTab === 'youtube'
-              ? 'bg-blue-50 text-blue-600'
-              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
           }`}
         >
           <Youtube size={18} />
@@ -96,10 +98,10 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
         </button>
         <button
           onClick={() => setActiveTab('video')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
             activeTab === 'video'
-              ? 'bg-blue-50 text-blue-600'
-              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
           }`}
         >
           <Video size={18} />
@@ -107,10 +109,10 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
         </button>
         <button
           onClick={() => setActiveTab('audio')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
             activeTab === 'audio'
-              ? 'bg-blue-50 text-blue-600'
-              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
           }`}
         >
           <Headphones size={18} />
@@ -133,14 +135,14 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
                   value={link}
                   onChange={(e) => updateLink(index, e.target.value)}
                   placeholder="Paste the YouTube video link, for example: https://www.youtube.com/watch?v=example"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 rounded-lg bg-slate-900 text-slate-100 placeholder:text-slate-500 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:border-emerald-500/70 transition-all"
                 />
               </div>
             ))}
             
             <button
               onClick={addMoreLink}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center gap-2 text-emerald-300 hover:text-emerald-200 transition-colors"
             >
               <Plus size={18} />
               Add More Link
@@ -151,26 +153,27 @@ export function YouTubeSummarizer({ setActiveSection, setTranscriptId, setVideoU
           <button
             onClick={handleGenerateSummary}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mb-8"
+            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:bg-gradient-to-r hover:from-green-600 hover:to-green-700 disabled:opacity-60 text-white py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mb-8"
+            style={{ background: 'linear-gradient(90deg, #66d044 0%, #14eb65 100%)' }}
           >
             <Sparkles size={18} />
-            {loading ? 'Processing…' : 'Get Summary'}
+            {loading ? 'Processing…' : 'Get Transcript'}
           </button>
 
           {/* Example Section */}
           <div className="mb-4">
-            <h3 className="text-blue-600 mb-4">Example</h3>
+            <h3 className="mb-4 text-emerald-400">Example</h3>
             <div className="grid grid-cols-4 gap-4">
               {exampleVideos.map((video, index) => (
                 <div
                   key={index}
-                  className="aspect-video rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                  className="aspect-video rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-slate-800"
                   style={{
                     background: '#1a1a1a',
                   }}
                 >
-                  <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                    <Youtube size={32} className="text-gray-600" />
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-950 to-slate-900 flex items-center justify-center">
+                    <Youtube size={32} className="text-emerald-500" />
                   </div>
                 </div>
               ))}
