@@ -28,6 +28,8 @@ import { PremiumNewsletterPopup } from './components/PremiumNewsletterPopup';
 import { Footer } from './components/Footer';
 import { getTranscriptById } from './api/transcript';
 import { TranscriptDetail } from './components/TranscriptDetail';
+import { YouTubeSummarizer } from './components/YouTubeSummarizer';
+import { SummaryDetailView } from './components/SummaryDetailView';
 import { Toaster } from './components/ui/sonner';
 import { getCurrentUser, logoutUser } from './api/auth';
 import { toast } from 'sonner';
@@ -40,6 +42,7 @@ export default function App() {
   const [user, setUser] = useState(null); // store basic user info from backend
   const [isPremium, setIsPremium] = useState(false);
   const [transcriptId, setTranscriptId] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
 
   const publicSections = ['home', 'login', 'register', 'forgot', 'reset-password', 'admin-login', 'auth-success'];
   const isAuthenticated = !!user;
@@ -184,7 +187,11 @@ export default function App() {
         <main className="relative">
           {activeSection === 'home' && <Hero setActiveSection={setActiveSection} />}
           {activeSection === 'transcribe' && (
-            <TranscriptionSection setActiveSection={setActiveSection} setTranscriptId={setTranscriptId} />
+            <YouTubeSummarizer
+              setActiveSection={setActiveSection}
+              setTranscriptId={setTranscriptId}
+              setVideoUrl={setVideoUrl}
+            />
           )}
           {activeSection === 'trending' && <TrendingNotes />}
           {activeSection === 'thumbnail' && <ThumbnailSection />}
@@ -200,6 +207,13 @@ export default function App() {
           {activeSection === 'premium' && <PremiumPage />}
           {activeSection === 'transcript-detail' && transcriptId && (
             <TranscriptDetail transcriptId={transcriptId} onBack={() => setActiveSection('transcribe')} />
+          )}
+          {activeSection === 'summary-detail' && transcriptId && videoUrl && (
+            <SummaryDetailView
+              transcriptId={transcriptId}
+              videoUrl={videoUrl}
+              onBack={() => setActiveSection('transcribe')}
+            />
           )}
           {activeSection === 'profile' && (
             <ProfilePage

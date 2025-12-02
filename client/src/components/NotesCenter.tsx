@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Plus, Folder, Tag, Pin, Archive, Trash2, Search, TrendingUp, FileText, Download } from 'lucide-react';
 import { Card } from './ui/card';
@@ -7,6 +7,8 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner@2.0.3';
+import { getNotes } from '../api/note';
+import ReactMarkdown from 'react-markdown';
 
 interface Note {
   id: number;
@@ -65,6 +67,31 @@ export function NotesCenter() {
   const [activeTab, setActiveTab] = useState('all');
 
   const folders = ['Web Dev', 'JavaScript', 'React', 'CSS', 'Personal'];
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getNotes();
+        const serverNotes = (res?.notes || []).map((n: any, idx: number) => ({
+          id: notes.length + idx + 1,
+          title: n.title || 'Untitled note',
+          content: n.content || '',
+          folder: 'AI Notes',
+          tags: Array.isArray(n.tags) ? n.tags : [],
+          isPinned: false,
+          isAIGenerated: !!n.isAIGenerated,
+          videoId: n.videoId,
+          createdAt: n.createdAt ? new Date(n.createdAt) : new Date(),
+          popularity: 0,
+        }));
+        if (serverNotes.length) {
+          setNotes((prev) => [...serverNotes, ...prev]);
+        }
+      } catch (err: any) {
+        console.error('Failed to load notes', err);
+      }
+    })();
+  }, []);
 
   const handleTogglePin = (id: number) => {
     setNotes(notes.map(note => 
@@ -234,9 +261,24 @@ export function NotesCenter() {
 
                   {/* Content */}
                   <h3 className="text-lg mb-2 line-clamp-2">{note.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3 flex-1">
-                    {note.content}
-                  </p>
+                  <div className="text-sm text-muted-foreground mb-4 line-clamp-3 flex-1 overflow-hidden">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ node, ...props }) => <p className="inline" {...props} />,
+                        ul: ({ node, ...props }) => <ul className="list-disc pl-4 inline" {...props} />,
+                        ol: ({ node, ...props }) => <ol className="list-decimal pl-4 inline" {...props} />,
+                        li: ({ node, ...props }) => <li className="inline" {...props} />,
+                        h1: ({ node, ...props }) => <strong {...props} />,
+                        h2: ({ node, ...props }) => <strong {...props} />,
+                        h3: ({ node, ...props }) => <strong {...props} />,
+                        code: ({ node, inline, ...props }) => (
+                          <code className="bg-black/5 px-1 rounded" {...props} />
+                        ),
+                      }}
+                    >
+                      {note.content}
+                    </ReactMarkdown>
+                  </div>
 
                   {/* Meta */}
                   <div className="space-y-2">

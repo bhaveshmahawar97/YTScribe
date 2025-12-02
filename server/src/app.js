@@ -11,6 +11,7 @@ import userRoutes from './routes/userRoutes.js';
 import playlistRoutes from './routes/playlistRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import noteRoutes from './routes/noteRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -64,6 +65,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/payment', paymentRoutes);
+
+// Notes (AI + manual)
+app.use('/api/notes', noteRoutes);
 
 //Mount transcript routes
 app.use("/api/transcript", transcriptRoutes);

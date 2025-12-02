@@ -29,7 +29,7 @@ router.patch('/:id', protect, updatePlaylist);
 router.delete('/:id/videos/:videoId', protect, removeVideoFromPlaylist);
 router.delete('/:id', protect, deletePlaylist);
 
-// Generate transient AI notes for a video (no DB writes)
-router.post('/notes/generate', protect, generatePlaylistVideoNotes);
+// Generate transient AI notes for a video (no DB writes, public)
+router.post('/notes/generate', generatePlaylistVideoNotes);
 
 export default router;

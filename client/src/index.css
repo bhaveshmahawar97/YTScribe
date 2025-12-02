@@ -1411,6 +1411,35 @@
     align-self: flex-start;
   }
 
+  /* Global interactive hover/active feedback for clickable elements */
+  button,
+  a,
+  [role="button"],
+  .cursor-pointer {
+    cursor: pointer;
+    transition:
+      transform var(--default-transition-duration, 0.15s) var(--default-transition-timing-function, ease-out),
+      box-shadow var(--default-transition-duration, 0.15s) var(--default-transition-timing-function, ease-out),
+      background-color var(--default-transition-duration, 0.15s) var(--default-transition-timing-function, ease-out),
+      color var(--default-transition-duration, 0.15s) var(--default-transition-timing-function, ease-out);
+  }
+
+  button:hover,
+  a:hover,
+  [role="button"]:hover,
+  .cursor-pointer:hover {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
+  }
+
+  button:active,
+  a:active,
+  [role="button"]:active,
+  .cursor-pointer:active {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  }
+
   .justify-self-end {
     justify-self: flex-end;
   }

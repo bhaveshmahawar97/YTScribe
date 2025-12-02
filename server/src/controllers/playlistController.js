@@ -438,12 +438,43 @@ export async function generatePlaylistVideoNotes(req, res, next) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const prompt = `You are a helpful tutor. Read the following video transcript and create clear, simple study notes.
-- Use human-readable language (easy to understand).
-- Structure with a clear 'Introduction', 'Key Concepts', and 'Summary'.
-- Use bullet points.
-- Avoid complex jargon unless necessary (and explain it if used).
-- TRANSCRIPT: ${text}`;
+    const prompt = `You are an expert learning coach. Read the following video transcript and create detailed, highly structured study notes **in Markdown**.
+
+Strictly follow this structure:
+
+1. # Title
+   - One line, concise title capturing the core topic.
+
+2. ## Overview
+   - 2–4 bullet points summarizing the big picture.
+
+3. ## Key Sections
+   For each major section of the transcript, create a subsection:
+   - ### [Section Name]
+     - **Key Idea 1:** short explanation
+     - **Key Idea 2:** short explanation
+     - Bullet list of very concrete, pinpoint insights (3–7 bullets).
+     - If there are steps or processes, use a **numbered list** for them.
+
+4. ## Examples & Analogies
+   - Bullet list of the best examples, analogies, or stories that clarify ideas.
+
+5. ## Important Definitions / Formulas (if applicable)
+   - Present as a Markdown table:
+     | Term / Formula | Plain-language meaning | Notes |
+     | --- | --- | --- |
+
+6. ## Actionable Takeaways
+   - 5–10 bullet points of what the learner should **do, remember, or apply**.
+
+Guidelines:
+- Use simple, student-friendly language.
+- Prefer short paragraphs and clear bullet points.
+- Use bold text to highlight key terms.
+- Only include tables where it genuinely helps (e.g., terms vs meanings).
+
+TRANSCRIPT:
+${text}`;
 
     const response = await model.generateContent(prompt);
     const notes = (response && response.response && typeof response.response.text === 'function')
