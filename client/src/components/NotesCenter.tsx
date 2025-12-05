@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner@2.0.3';
-import { getNotes } from '../api/note';
+import { getNotes, exportNotes } from '../api/note';
 import ReactMarkdown from 'react-markdown';
 
 interface Note {
@@ -105,8 +105,17 @@ export function NotesCenter() {
     toast.success('Note deleted');
   };
 
-  const handleExportAll = () => {
-    toast.success('Exporting all notes...');
+  const handleExportAll = async () => {
+    try {
+      toast.loading('Preparing your notes for export...');
+      await exportNotes();
+      toast.dismiss();
+      toast.success('Notes exported successfully!');
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      toast.dismiss();
+      toast.error(error?.message || 'Failed to export notes');
+    }
   };
 
   const filteredNotes = notes.filter(note => {
