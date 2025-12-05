@@ -1,12 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Download } from 'lucide-react';
 import { generatePlaylistVideoNotes } from '../api/playlist';
+import { exportNotesAsPdf } from '../utils/exportUtils';
+import { fetchNotes } from '../api/notes';
 
 export default function NotesPanel({ currentVideoUrl, currentVideoId }) {
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [notes, setNotes] = useState('');
+  const [savedNotes, setSavedNotes] = useState([]);
   const [error, setError] = useState('');
+
+  // Fetch saved notes when component mounts
+  useEffect(() => {
+    const loadNotes = async () => {
+      try {
+        const data = await fetchNotes();
+        setSavedNotes(data.notes || []);
+      } catch (err) {
+        setError('Failed to load saved notes');
+      }
+    };
+    
+    loadNotes();
+  }, []);
 
   const onGenerate = async () => {
     try {
@@ -22,16 +40,45 @@ export default function NotesPanel({ currentVideoUrl, currentVideoId }) {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await exportNotesAsPdf(savedNotes, 'my-ytscribe-notes');
+    } catch (err) {
+      setError('Failed to export notes. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      <div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={onGenerate}
           disabled={loading}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-sm disabled:opacity-50"
         >
-          {loading ? (<><Loader2 className="w-4 h-4 animate-spin"/> Reading video and writing notes...</>) : (<><Sparkles className="w-4 h-4"/> Generate AI Notes</>)}
+          {loading ? (
+            <><Loader2 className="w-4 h-4 animate-spin"/> Generating AI Notes...</>
+          ) : (
+            <><Sparkles className="w-4 h-4"/> Generate AI Notes</>
+          )}
         </button>
+        
+        {savedNotes.length > 0 && (
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white text-sm disabled:opacity-50"
+          >
+            {exporting ? (
+              <><Loader2 className="w-4 h-4 animate-spin"/> Exporting...</>
+            ) : (
+              <><Download className="w-4 h-4"/> Export All as PDF</>
+            )}
+          </button>
+        )}
       </div>
 
       {error && <div className="text-red-400 text-sm">{error}</div>}

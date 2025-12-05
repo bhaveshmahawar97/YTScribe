@@ -27,6 +27,7 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
+    "pdfkit": "^0.17.2",
     "uuid": "^13.0.0",
     "youtube-captions-scraper": "^2.0.3",
     "youtube-dl-exec": "^3.0.27",
