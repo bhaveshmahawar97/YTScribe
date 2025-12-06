@@ -31,7 +31,8 @@
     "uuid": "^13.0.0",
     "youtube-captions-scraper": "^2.0.3",
     "youtube-dl-exec": "^3.0.27",
-    "youtube-transcript": "^1.2.1"
+    "youtube-transcript": "^1.2.1",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

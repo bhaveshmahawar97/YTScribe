@@ -15,10 +15,10 @@ async function connectDB() {
       serverSelectionTimeoutMS: 20000,
       family: 4,
     });
-    console.log('✅ MongoDB connected');
+    console.log('MongoDB connected');
   } catch (error) {
     const detail = (error && (error.reason?.code || error.code || error.name)) ? ` (${error.reason?.code || error.code || error.name})` : '';
-    console.error(`❌ MongoDB connection error${detail}:`, error.message || error);
+    console.error(` MongoDB connection error${detail}:`, error.message || error);
     process.exit(1);
   }
 }

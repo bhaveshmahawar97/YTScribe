@@ -148,9 +148,9 @@ export function NotesCenter() {
             <h1 className="text-4xl md:text-5xl mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Notes Center
             </h1>
-            <p className="text-muted-foreground">
+            <i  className="text-muted-foreground text-sm">
               Organize and manage all your learning notes in one place
-            </p>
+            </i>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportAll}>

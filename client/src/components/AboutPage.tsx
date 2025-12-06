@@ -39,7 +39,7 @@ export function AboutPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-16"
       >
-        <Badge variant="secondary" className="mb-4">
+        <Badge variant="secondary" className="mb-4 text-xs text-muted-foreground">
           About YTScribe
         </Badge>
         <h1 className="text-5xl md:text-6xl mb-6 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
@@ -159,7 +159,7 @@ export function AboutPage() {
           </div>
           <h3 className="text-xl mb-1">Project Mentor</h3>
           <p className="text-lg mb-2">Mr. Sanjay Kumar Tuddu</p>
-          <p className="text-sm text-muted-foreground">Associate Professor</p>
+          <p className="text-sm text-muted-foreground">Assistant Professor</p>
           <p className="text-sm text-muted-foreground">Dev Bhoomi Uttarakhand University, Dehradun</p>
         </Card>
       </motion.div>
@@ -204,7 +204,7 @@ export function AboutPage() {
                 Dev Bhoomi Uttarakhand University, Dehradun
               </p>
               <p className="text-muted-foreground">
-                Under the guidance of Mr. Sanjay Kumar Tuddu (Associate Professor)
+                Under the guidance of Mr. Sanjay Kumar Tuddu (Assiestent Professor)
               </p>
               <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-primary/10">
                 This project is part of the MCA program curriculum. All intellectual property rights are governed by university policies and applicable laws.

@@ -99,7 +99,7 @@ export function ServicesPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-16"
       >
-        <Badge variant="secondary" className="mb-4">
+        <Badge variant="secondary" className="mb-4 text-xs text-muted-foreground" >
           All-in-One Learning Platform
         </Badge>
         <h1 className="text-5xl md:text-6xl mb-6 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">

@@ -82,7 +82,7 @@ export function LearningAnalytics() {
                 Learning Analytics
               </span>
             </h1>
-            <p className="text-muted-foreground">Track your progress and stay motivated</p>
+            <i className="text-muted-foreground text-sm">Track your progress and stay motivated</i>
           </div>
         </div>
 

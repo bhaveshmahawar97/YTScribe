@@ -12,7 +12,7 @@ export function Footer({ setActiveSection }: FooterProps) {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div>
             <h3 className="mb-4">YTScribe</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Transform YouTube content with the power of AI
             </p>
           </div>

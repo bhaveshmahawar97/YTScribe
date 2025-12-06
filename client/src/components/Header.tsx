@@ -84,9 +84,14 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
                 <Sparkles className="w-4 h-4 text-accent" />
               </motion.div>
             </div>
-            <span className="text-2xl bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-              YTScribe
-            </span>
+            <div className="flex flex-col items-start leading-tighter pt-0.5">
+              <span className="text-2xl bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                YTScribe
+              </span>
+
+              <i className="text-sm text-muted-foreground mt-1 text-xs">Transform YouTube content with AI</i>
+
+            </div>
           </motion.div>
 
           {/* Desktop Navigation */}
@@ -95,9 +100,8 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
               <motion.button
                 key={item.id}
                 onClick={() => setActiveSection(item.id as any)}
-                className={`relative px-3 py-2 transition-colors ${
-                  activeSection === item.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`relative px-3 py-2 transition-colors ${activeSection === item.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -221,11 +225,10 @@ export function Header({ activeSection, setActiveSection, currentUser, onLogout 
                   setActiveSection(item.id as any);
                   setMobileMenuOpen(false);
                 }}
-                className={`block w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  activeSection === item.id
+                className={`block w-full text-left px-4 py-2 rounded-lg transition-colors ${activeSection === item.id
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-accent/10'
-                }`}
+                  }`}
               >
                 {item.label}
               </button>

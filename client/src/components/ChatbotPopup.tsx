@@ -81,10 +81,11 @@ export function ChatbotPopup({ isPopup = false }: ChatbotPopupProps) {
 
   const suggestedQuestions = [
     "How do I transcribe a video?",
-    "Generate tags for my video",
-    "Create a thumbnail",
-    "Show trending notes",
-  ];
+    "How do I access my purchased courses?",
+    "Tell me about the AI note summarization.",
+    "How can I track my learning progress?",
+    "Who are the developers of YTScribe?",
+];
 
   return (
     <div className="flex flex-col h-full">

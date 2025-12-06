@@ -83,16 +83,7 @@ export function Hero({ setActiveSection }: HeroProps) {
           </Button>
         </motion.div>
 
-        {/* Show Guide Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowGuide(true)}
-          className="mt-4"
-        >
-          <Info className="w-4 h-4 mr-2" />
-          Quick Start Guide
-        </Button>
+        
       </motion.div>
 
       {/* Features Grid */}
@@ -146,10 +137,7 @@ export function Hero({ setActiveSection }: HeroProps) {
         className="absolute bottom-40 right-10 w-32 h-32 bg-accent/10 rounded-full blur-2xl"
       />
 
-      {/* Quick Start Guide */}
-      {showGuide && (
-        <QuickStartGuide onClose={() => setShowGuide(false)} />
-      )}
+      
     </div>
   );
 }
